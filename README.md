@@ -50,8 +50,40 @@ what URL and content type were resolved.
 
 - `podcast_hub.reload_sources`: Trigger a refresh of all configured feeds.
 
+## Blueprint
+
+This integration ships a blueprint to play the latest episode on a media player:
+
+```
+blueprints/automation/podcast_hub/play_latest_episode.yaml
+```
+
 ## Entity overview
 
 - One sensor per feed: `sensor.podcast_<feed_id>`
   - State: number of episodes
   - Attributes: feed metadata and episode list (limited by `max_episodes`)
+
+## UI example: Button to play latest episode
+
+Example Lovelace button that plays the latest episode of a feed when pressed:
+
+```yaml
+type: button
+name: Play latest episode
+icon: mdi:podcast
+tap_action:
+  action: call-service
+  service: media_player.play_media
+  target:
+    entity_id: media_player.living_room
+  data:
+    media_content_id: >-
+      {% set episodes = state_attr('sensor.podcast_lage_der_nation', 'episodes') or [] %}
+      {% if episodes %}
+        media-source://podcast_hub/lage_der_nation/{{ episodes[0].guid | urlencode }}
+      {% else %}
+        media-source://podcast_hub/lage_der_nation/none
+      {% endif %}
+    media_content_type: podcast
+```
