@@ -1,46 +1,57 @@
-# Notice
+# Podcast Hub
 
-The component and platforms in this repository are not meant to be used by a
-user, but as a "blueprint" that custom component developers can build
-upon, to make more awesome stuff.
+Podcast Hub is a Home Assistant custom integration that lets you manage podcast
+feeds (RSS/Atom) from `configuration.yaml`. It exposes each feed as a sensor,
+provides a Media Source browser for playback, and offers a reload service for
+manual refreshes.
 
-HAVE FUN! 😎
+## Why this exists
 
-## Why?
+- Centralize podcast feed definitions in Home Assistant
+- Browse episodes via Media Source and play them on media players
+- Use sensor attributes in automations (latest episode, episode list, etc.)
 
-This is simple, by having custom_components look (README + structure) the same
-it is easier for developers to help each other and for users to start using them.
+## Configuration
 
-If you are a developer and you want to add things to this "blueprint" that you think more
-developers will have use for, please open a PR to add it :)
+Add the integration to your `configuration.yaml`:
 
-## What?
+```yaml
+podcast_hub:
+  update_interval: 15  # minutes, optional
+  podcasts:
+    - id: lage_der_nation
+      name: Lage der Nation
+      url: https://example.com/feed.xml
+      max_episodes: 50
+```
 
-This repository contains multiple files, here is a overview:
+### Options
 
-File | Purpose | Documentation
--- | -- | --
-`.devcontainer.json` | Used for development/testing with Visual Studio Code. | [Documentation](https://code.visualstudio.com/docs/remote/containers)
-`.github/ISSUE_TEMPLATE/*.yml` | Templates for the issue tracker | [Documentation](https://help.github.com/en/github/building-a-strong-community/configuring-issue-templates-for-your-repository)
-`custom_components/podcast_hub/*` | Integration files, this is where everything happens. | [Documentation](https://developers.home-assistant.io/docs/creating_component_index)
-`CONTRIBUTING.md` | Guidelines on how to contribute. | [Documentation](https://help.github.com/en/github/building-a-strong-community/setting-guidelines-for-repository-contributors)
-`LICENSE` | The license file for the project. | [Documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository)
-`README.md` | The file you are reading now, should contain info about the integration, installation and configuration instructions. | [Documentation](https://help.github.com/en/github/writing-on-github/basic-writing-and-formatting-syntax)
-`requirements.txt` | Python packages used for development/lint/testing this integration. | [Documentation](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
+- `update_interval` (int, minutes, optional): How often to refresh all feeds.
+- `podcasts` (list, required): Podcast feed definitions.
+  - `id` (str, required): Unique feed id (used in entity ids and media paths).
+  - `name` (str, required): Friendly name shown in UI.
+  - `url` (str, required): RSS/Atom feed URL.
+  - `max_episodes` (int, optional): Maximum number of episodes to keep per feed.
+  - `update_interval` (int, optional): Per-feed override (minutes).
 
-## How?
+## Media browsing and playback
 
-1. Create a new repository in GitHub, using this repository as a template by clicking the "Use this template" button in the GitHub UI.
-1. Open your new repository in Visual Studio Code devcontainer (Preferably with the "`Dev Containers: Clone Repository in Named Container Volume...`" option).
-1. Rename all instances of the `podcast_hub` to `custom_components/<your_integration_domain>` (e.g. `custom_components/awesome_integration`).
-1. Rename all instances of the `Podcast Hub` to `<Your Integration Name>` (e.g. `Awesome Integration`).
-1. Run the `scripts/develop` to start HA and test out your new integration.
+The Media Source browser lists your feeds and episodes. When you play an episode,
+Home Assistant resolves the URL from the feed and sends it to the selected media
+player.
 
-## Next steps
+Important: Make sure your feed entries actually contain audio enclosures.
+If a feed points to non-audio content (or no enclosure at all), playback may fail
+with a wrong media type error. Check the Home Assistant log for details about
+what URL and content type were resolved.
 
-These are some next steps you may want to look into:
-- Add tests to your integration, [`pytest-homeassistant-custom-component`](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) can help you get started.
-- Add brand images (logo/icon) to https://github.com/home-assistant/brands.
-- Create your first release.
-- Share your integration on the [Home Assistant Forum](https://community.home-assistant.io/).
-- Submit your integration to [HACS](https://hacs.xyz/docs/publish/start).
+## Services
+
+- `podcast_hub.reload_sources`: Trigger a refresh of all configured feeds.
+
+## Entity overview
+
+- One sensor per feed: `sensor.podcast_<feed_id>`
+  - State: number of episodes
+  - Attributes: feed metadata and episode list (limited by `max_episodes`)
