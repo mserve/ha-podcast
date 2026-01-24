@@ -31,11 +31,11 @@ async def test_config_flow_creates_entry(hass) -> None:  # noqa: ANN001
         DOMAIN, context={"source": "user"}, data=user_input
     )
 
-    assert result["type"] == "form"
+    assert result["type"] == "menu"
     assert result["step_id"] == "menu"
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "menu"}, data={"next_step_id": "add_feed"}
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "add_feed"}
     )
 
     assert result["type"] == "form"
@@ -67,11 +67,11 @@ async def test_config_flow_rejects_duplicate_id(hass) -> None:  # noqa: ANN001
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}, data=user_input
     )
-    assert result["type"] == "form"
+    assert result["type"] == "menu"
     assert result["step_id"] == "menu"
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "menu"}, data={"next_step_id": "add_feed"}
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "add_feed"}
     )
     assert result["type"] == "form"
     assert result["step_id"] == "add_feed"
@@ -84,11 +84,11 @@ async def test_config_flow_rejects_duplicate_id(hass) -> None:  # noqa: ANN001
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}, data=user_input
     )
-    assert result["type"] == "form"
+    assert result["type"] == "menu"
     assert result["step_id"] == "menu"
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "menu"}, data={"next_step_id": "add_feed"}
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "add_feed"}
     )
     assert result["type"] == "form"
     assert result["step_id"] == "add_feed"
@@ -96,8 +96,8 @@ async def test_config_flow_rejects_duplicate_id(hass) -> None:  # noqa: ANN001
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "add_feed"}, data=user_input
     )
-    assert result["type"] == "form"
-    assert result["errors"]["base"] == "already_configured"
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_ID] == "lage_der_nation_2"
 
 
 @pytest.mark.asyncio
@@ -106,11 +106,11 @@ async def test_config_flow_settings_entry(hass) -> None:  # noqa: ANN001
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}, data={}
     )
-    assert result["type"] == "form"
+    assert result["type"] == "menu"
     assert result["step_id"] == "menu"
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "menu"}, data={"next_step_id": "settings"}
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "settings"}
     )
     assert result["type"] == "form"
     assert result["step_id"] == "settings"
