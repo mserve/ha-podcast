@@ -177,3 +177,34 @@ async def test_per_feed_update_interval_skips_refresh(hass: HomeAssistant) -> No
         await hass.async_block_till_done()
 
     assert async_fetch.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_yaml_media_type_setting(hass: HomeAssistant) -> None:
+    """Store media type from YAML configuration."""
+    config = {
+        DOMAIN: {
+            "update_interval": 15,
+            "media_type": "podcast",
+            "podcasts": [
+                {
+                    "id": "lage_der_nation",
+                    "name": "Lage der Nation",
+                    "url": "https://example.com/feed.xml",
+                    "max_episodes": 50,
+                }
+            ],
+        }
+    }
+
+    async def fake_fetch(self, url) -> bytes:  # noqa: ANN001, ARG001
+        return FEED_XML.encode()
+
+    with patch(
+        "custom_components.podcast_hub.coordinator.PodcastHubCoordinator._async_fetch",
+        new=fake_fetch,
+    ):
+        assert await async_setup_component(hass, DOMAIN, config)
+        await hass.async_block_till_done()
+
+    assert hass.data[DOMAIN]["media_type"] == "podcast"

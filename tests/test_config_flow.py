@@ -7,6 +7,7 @@ import pytest
 from custom_components.podcast_hub.const import (
     CONF_ID,
     CONF_MAX_EPISODES,
+    CONF_MEDIA_TYPE,
     CONF_NAME,
     CONF_UPDATE_INTERVAL,
     CONF_URL,
@@ -117,8 +118,9 @@ async def test_config_flow_settings_entry(hass) -> None:  # noqa: ANN001
     result = await hass.config_entries.flow.async_init(
         DOMAIN,
         context={"source": "settings"},
-        data={CONF_UPDATE_INTERVAL: 20},
+        data={CONF_UPDATE_INTERVAL: 20, CONF_MEDIA_TYPE: "track"},
     )
     assert result["type"] == "create_entry"
     assert result["title"] == "Settings"
     assert result["data"][CONF_UPDATE_INTERVAL] == 20
+    assert result["data"][CONF_MEDIA_TYPE] == "track"

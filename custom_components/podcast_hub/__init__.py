@@ -18,6 +18,7 @@ from homeassistant.helpers.typing import ConfigType
 from .const import (
     CONF_ID,
     CONF_MAX_EPISODES,
+    CONF_MEDIA_TYPE,
     CONF_NAME,
     CONF_PODCASTS,
     CONF_UPDATE_INTERVAL,
@@ -62,6 +63,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         update_interval = int(update_interval)
     except (TypeError, ValueError):
         update_interval = DEFAULT_UPDATE_INTERVAL
+    media_type = conf.get(CONF_MEDIA_TYPE, "track")
+    if media_type not in {"track", "podcast"}:
+        media_type = "track"
 
     podcasts = conf.get(CONF_PODCASTS, [])
     feeds: list[PodcastFeed] = []
@@ -87,6 +91,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data.setdefault(DOMAIN, {})
     data = hass.data[DOMAIN]
     data["has_yaml"] = True
+    data["media_type"] = media_type
     hub, coordinator = _ensure_hub_and_coordinator(hass, update_interval)
     _merge_feeds(hub, feeds)
     await coordinator.async_refresh()

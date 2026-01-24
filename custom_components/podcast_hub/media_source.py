@@ -17,7 +17,7 @@ from homeassistant.components.media_source import (
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, LOGGER, REQUEST_TIMEOUT
+from .const import CONF_MEDIA_TYPE, DEFAULT_UPDATE_INTERVAL, DOMAIN, LOGGER, REQUEST_TIMEOUT
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -46,8 +46,15 @@ MEDIA_SOURCE_ICON = f"data:image/svg+xml;utf8,{quote(_ICON_SVG)}"
 
 async def async_get_media_source(hass: HomeAssistant) -> PodcastHubMediaSource:
     """Return the Podcast Hub media source instance."""
-    data = hass.data[DOMAIN]
-    return PodcastHubMediaSource(hass, data["hub"], data["coordinator"])
+    data = hass.data.setdefault(DOMAIN, {})
+    hub = data.get("hub")
+    coordinator = data.get("coordinator")
+    if not hub or not coordinator:
+        hub = PodcastHub([])
+        coordinator = PodcastHubCoordinator(hass, hub, DEFAULT_UPDATE_INTERVAL)
+        data["hub"] = hub
+        data["coordinator"] = coordinator
+    return PodcastHubMediaSource(hass, hub, coordinator)
 
 
 @dataclass(slots=True)
@@ -220,7 +227,10 @@ class PodcastHubMediaSource(MediaSource):
         if mode == LATEST_KEY:
             episodes = episodes[:1]
 
-        children = [_episode_to_browse_item(feed, episode) for episode in episodes]
+        media_type = self._episode_media_type()
+        children = [
+            _episode_to_browse_item(feed, episode, media_type) for episode in episodes
+        ]
         title = "Latest" if mode == LATEST_KEY else "All Episodes"
         return BrowseMediaSource(
             domain=DOMAIN,
@@ -233,13 +243,24 @@ class PodcastHubMediaSource(MediaSource):
             children=children,
         )
 
+    def _episode_media_type(self) -> MediaType:
+        settings = self.hass.data.get(DOMAIN, {}).get("settings_entry")
+        configured = settings.data.get(CONF_MEDIA_TYPE) if settings else None
+        if not configured:
+            configured = self.hass.data.get(DOMAIN, {}).get("media_type")
+        if configured == "podcast":
+            return MediaType.PODCAST
+        return MediaType.TRACK
 
-def _episode_to_browse_item(feed: PodcastFeed, episode: Episode) -> BrowseMediaSource:
+
+def _episode_to_browse_item(
+    feed: PodcastFeed, episode: Episode, media_type: MediaType
+) -> BrowseMediaSource:
     return BrowseMediaSource(
         domain=DOMAIN,
         identifier=_join_identifier(feed.feed_id, episode.guid),
         media_class=MediaClass.PODCAST,
-        media_content_type=MediaType.PODCAST,
+        media_content_type=media_type,
         title=episode.title,
         can_play=True,
         can_expand=False,

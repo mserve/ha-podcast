@@ -24,3 +24,4 @@ REQUEST_TIMEOUT = 20
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 SERVICE_RELOAD = "reload_sources"
 EVENT_NEW_EPISODE = "podcast_hub_new_episode"
+CONF_MEDIA_TYPE = "media_type"

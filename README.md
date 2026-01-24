@@ -38,6 +38,7 @@ Add the integration to your `configuration.yaml` if you prefer YAML:
 ```yaml
 podcast_hub:
   update_interval: 15  # minutes, optional
+  media_type: track    # optional: track (Sonos compatible) or podcast
   podcasts:
     - id: lage_der_nation
       name: Lage der Nation

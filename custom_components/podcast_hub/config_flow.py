@@ -11,6 +11,7 @@ from homeassistant.helpers import config_validation as cv
 from .const import (
     CONF_ID,
     CONF_MAX_EPISODES,
+    CONF_MEDIA_TYPE,
     CONF_NAME,
     CONF_UPDATE_INTERVAL,
     CONF_URL,
@@ -75,7 +76,10 @@ class PodcastHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_settings(self, user_input: dict[str, Any] | None = None):
         """Handle global settings."""
         if user_input is not None:
-            settings_data = {CONF_UPDATE_INTERVAL: user_input[CONF_UPDATE_INTERVAL]}
+            settings_data = {
+                CONF_UPDATE_INTERVAL: user_input[CONF_UPDATE_INTERVAL],
+                CONF_MEDIA_TYPE: user_input[CONF_MEDIA_TYPE],
+            }
             await self.async_set_unique_id(CONF_SETTINGS)
             self._abort_if_unique_id_configured()
             return self.async_create_entry(title="Settings", data=settings_data)
@@ -86,11 +90,17 @@ class PodcastHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if existing
             else DEFAULT_UPDATE_INTERVAL
         )
+        default_media_type = (
+            existing.data.get(CONF_MEDIA_TYPE, "track") if existing else "track"
+        )
         schema = vol.Schema(
             {
                 vol.Required(
                     CONF_UPDATE_INTERVAL, default=default_value
                 ): vol.Coerce(int),
+                vol.Required(
+                    CONF_MEDIA_TYPE, default=default_media_type
+                ): vol.In(["track", "podcast"]),
             }
         )
         return self.async_show_form(step_id="settings", data_schema=schema)
