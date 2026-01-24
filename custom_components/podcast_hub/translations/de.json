@@ -39,19 +39,16 @@
         "description": "Konfiguriere Standardwerte für alle Feeds.",
         "data": {
           "update_interval": "Standard-Aktualisierungsintervall (Minuten)",
-          "media_type": "Episoden-Medientyp (audio/* für Sonos)"
+          "media_type": "Episoden-Medientyp"
+        },
+        "data_description": {
+          "media_type": "Verwende \"track\" für audio/* (beste Kompatibilität mit Sonos) oder \"podcast\" für Podcast."
         }
       }
     },
     "error": {
       "already_configured": "Dieser Feed ist bereits konfiguriert.",
       "invalid_url": "Bitte gib eine gültige URL ein."
-    },
-    "option": {
-      "media_type": {
-        "track": "audio/* (beste Kompatibilität)",
-        "podcast": "Podcast"
-      }
     }
   }
 }

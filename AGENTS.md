@@ -35,7 +35,6 @@ and **maintainable**.
 
 ### Scope Discipline
 This project intentionally does **not** include:
-- Config Flow / UI setup
 - Authentication-protected feeds
 - Offline downloads or caching of audio
 - Played/unplayed persistence
@@ -97,7 +96,7 @@ Agents must:
 - Ensure `ruff format .` produces no diff
 - Never introduce code that requires disabling Ruff rules globally
 
-Configuration lives in `pyproject.toml`.
+Configuration lives in `.ruff.toml`.
 
 ---
 

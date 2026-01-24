@@ -11,7 +11,9 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import aiohttp
+import voluptuous as vol
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import discovery
 
 from .const import (
@@ -36,6 +38,35 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant, ServiceCall
     from homeassistant.helpers.typing import ConfigType
+
+PODCAST_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ID): cv.slug,
+        vol.Required(CONF_NAME): cv.string,
+        vol.Required(CONF_URL): cv.url,
+        vol.Optional(CONF_MAX_EPISODES, default=DEFAULT_MAX_EPISODES): vol.Coerce(int),
+        vol.Optional(CONF_UPDATE_INTERVAL): vol.Coerce(int),
+    }
+)
+
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Optional(
+                    CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL
+                ): vol.Coerce(int),
+                vol.Optional(CONF_MEDIA_TYPE, default="track"): vol.In(
+                    ["track", "podcast"]
+                ),
+                vol.Optional(CONF_PODCASTS, default=[]): vol.All(
+                    cv.ensure_list, [PODCAST_SCHEMA]
+                ),
+            }
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
+)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

@@ -40,18 +40,15 @@
         "data": {
           "update_interval": "Default update interval (minutes)",
           "media_type": "Episode media type"
+        },
+        "data_description": {
+          "media_type": "Use \"track\" for audio/* (best compatibility with Sonos), or \"podcast\" for Podcast."
         }
       }
     },
     "error": {
       "already_configured": "This feed is already configured.",
       "invalid_url": "Please enter a valid URL."
-    },
-    "option": {
-      "media_type": {
-        "track": "audio/* for Sonos (best compatibility)",
-        "podcast": "Podcast"
-      }
     }
   }
 }
