@@ -250,18 +250,18 @@ class PodcastHubMediaSource(MediaSource):
             children=children,
         )
 
-    def _episode_media_type(self) -> MediaType:
+    def _episode_media_type(self) -> str:
         settings = self.hass.data.get(DOMAIN, {}).get("settings_entry")
         configured = settings.data.get(CONF_MEDIA_TYPE) if settings else None
         if not configured:
             configured = self.hass.data.get(DOMAIN, {}).get("media_type")
         if configured == "podcast":
             return MediaType.PODCAST
-        return MediaType.TRACK
+        return "audio/mpeg"
 
 
 def _episode_to_browse_item(
-    feed: PodcastFeed, episode: Episode, media_type: MediaType
+    feed: PodcastFeed, episode: Episode, media_type: str
 ) -> BrowseMediaSource:
     return BrowseMediaSource(
         domain=DOMAIN,

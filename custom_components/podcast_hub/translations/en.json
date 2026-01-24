@@ -49,7 +49,7 @@
     },
     "option": {
       "media_type": {
-        "track": "Track (best compatibility)",
+        "track": "audio/* for Sonos (best compatibility)",
         "podcast": "Podcast"
       }
     }

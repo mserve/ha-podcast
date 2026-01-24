@@ -1,0 +1,57 @@
+{
+  "services": {
+    "reload_sources": {
+      "name": "Quellen neu laden",
+      "description": "Aktualisiert alle konfigurierten Podcast-Feeds."
+    }
+  },
+  "config": {
+    "step": {
+      "menu": {
+        "title": "Podcast Hub Einrichtung",
+        "menu_options": {
+          "add_feed": "Podcast-Feed hinzufügen",
+          "settings": "Einstellungen"
+        }
+      },
+      "user": {
+        "title": "Podcast-Feed hinzufügen",
+        "description": "Richte einen Podcast-Feed zum Durchsuchen und Abspielen ein.",
+        "data": {
+          "name": "Name",
+          "url": "Feed-URL",
+          "max_episodes": "Maximale Episoden",
+          "update_interval": "Aktualisierungsintervall (Minuten)"
+        }
+      },
+      "add_feed": {
+        "title": "Podcast-Feed hinzufügen",
+        "description": "Richte einen Podcast-Feed zum Durchsuchen und Abspielen ein.",
+        "data": {
+          "name": "Name",
+          "url": "Feed-URL",
+          "max_episodes": "Maximale Episoden",
+          "update_interval": "Aktualisierungsintervall (Minuten)"
+        }
+      },
+      "settings": {
+        "title": "Globale Einstellungen",
+        "description": "Konfiguriere Standardwerte für alle Feeds.",
+        "data": {
+          "update_interval": "Standard-Aktualisierungsintervall (Minuten)",
+          "media_type": "Episoden-Medientyp (audio/* für Sonos)"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Dieser Feed ist bereits konfiguriert.",
+      "invalid_url": "Bitte gib eine gültige URL ein."
+    },
+    "option": {
+      "media_type": {
+        "track": "audio/* (beste Kompatibilität)",
+        "podcast": "Podcast"
+      }
+    }
+  }
+}
