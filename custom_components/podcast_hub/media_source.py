@@ -142,27 +142,7 @@ class PodcastHubMediaSource(MediaSource):
         return PlayMedia(url=final_url, mime_type=mime_type)
 
     def _browse_root(self) -> BrowseMediaSource:
-        return BrowseMediaSource(
-            domain=DOMAIN,
-            identifier=None,
-            media_class=MediaClass.DIRECTORY,
-            media_content_type="directory",
-            title="Podcast Hub",
-            can_play=False,
-            can_expand=True,
-            thumbnail=MEDIA_SOURCE_ICON,
-            children=[
-                BrowseMediaSource(
-                    domain=DOMAIN,
-                    identifier=_join_identifier(PODCASTS_ROOT),
-                    media_class=MediaClass.DIRECTORY,
-                    media_content_type="directory",
-                    title="Podcasts",
-                    can_play=False,
-                    can_expand=True,
-                )
-            ],
-        )
+        return self._browse_podcasts()
 
     def _browse_podcasts(self) -> BrowseMediaSource:
         children = [
@@ -180,12 +160,13 @@ class PodcastHubMediaSource(MediaSource):
         ]
         return BrowseMediaSource(
             domain=DOMAIN,
-            identifier=_join_identifier(PODCASTS_ROOT),
+            identifier=None,
             media_class=MediaClass.DIRECTORY,
             media_content_type="directory",
-            title="Podcasts",
+            title="Podcast Hub",
             can_play=False,
             can_expand=True,
+            thumbnail=MEDIA_SOURCE_ICON,
             children=children,
         )
 
