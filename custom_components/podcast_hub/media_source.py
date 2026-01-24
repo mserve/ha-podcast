@@ -30,6 +30,18 @@ PODCASTS_ROOT = "feeds"
 LATEST_KEY = "latest"
 ALL_KEY = "all"
 EPISODE_PATH_PARTS = 2
+_ICON_SVG = (
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>"
+    "<circle cx='32' cy='32' r='30' fill='%2303a9f4'/>"
+    "<rect x='26' y='18' width='12' height='22' rx='6' fill='white'/>"
+    "<path d='M20 30v4a12 12 0 0 0 24 0v-4' "
+    "fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/>"
+    "<path d='M32 46v6' stroke='white' stroke-width='4' stroke-linecap='round'/>"
+    "<path d='M24 54h16' stroke='white' stroke-width='4' "
+    "stroke-linecap='round'/>"
+    "</svg>"
+)
+MEDIA_SOURCE_ICON = f"data:image/svg+xml;utf8,{quote(_ICON_SVG)}"
 
 
 async def async_get_media_source(hass: HomeAssistant) -> PodcastHubMediaSource:
@@ -124,6 +136,7 @@ class PodcastHubMediaSource(MediaSource):
             title="Podcast Hub",
             can_play=False,
             can_expand=True,
+            thumbnail=MEDIA_SOURCE_ICON,
             children=[
                 BrowseMediaSource(
                     domain=DOMAIN,
