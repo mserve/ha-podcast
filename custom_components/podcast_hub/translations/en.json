@@ -4,5 +4,23 @@
       "name": "Reload sources",
       "description": "Refresh all configured podcast feeds."
     }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add podcast feed",
+        "description": "Set up a podcast feed to browse and play episodes.",
+        "data": {
+          "id": "Feed ID",
+          "name": "Name",
+          "url": "Feed URL",
+          "max_episodes": "Maximum episodes",
+          "update_interval": "Update interval (minutes)"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "This feed ID is already configured."
+    }
   }
 }
