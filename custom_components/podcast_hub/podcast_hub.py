@@ -18,6 +18,7 @@ class Episode:
     title: str
     published: datetime | None
     url: str
+    image_url: str | None = None
     summary: str | None = None
 
     def as_dict(self) -> dict[str, str | None]:
@@ -27,6 +28,7 @@ class Episode:
             "title": self.title,
             "published": self.published.isoformat() if self.published else None,
             "url": self.url,
+            "image_url": self.image_url,
             "summary": self.summary,
         }
 
@@ -40,6 +42,7 @@ class PodcastFeed:
     url: str
     max_episodes: int
     title: str | None = None
+    image_url: str | None = None
     episodes: list[Episode] = field(default_factory=list)
     last_error: str | None = None
     update_interval: int | None = None

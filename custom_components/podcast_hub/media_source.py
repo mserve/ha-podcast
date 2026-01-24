@@ -174,6 +174,7 @@ class PodcastHubMediaSource(MediaSource):
                 title=feed.title or feed.name,
                 can_play=False,
                 can_expand=True,
+                thumbnail=feed.image_url,
             )
             for feed in self.hub.feeds.values()
         ]
@@ -202,6 +203,7 @@ class PodcastHubMediaSource(MediaSource):
             title=feed.title or feed.name,
             can_play=False,
             can_expand=True,
+            thumbnail=feed.image_url,
             children=[
                 BrowseMediaSource(
                     domain=DOMAIN,
@@ -211,6 +213,7 @@ class PodcastHubMediaSource(MediaSource):
                     title="Latest",
                     can_play=False,
                     can_expand=True,
+                    thumbnail=feed.image_url,
                 ),
                 BrowseMediaSource(
                     domain=DOMAIN,
@@ -220,6 +223,7 @@ class PodcastHubMediaSource(MediaSource):
                     title="All Episodes",
                     can_play=False,
                     can_expand=True,
+                    thumbnail=feed.image_url,
                 ),
             ],
         )
@@ -271,6 +275,7 @@ def _episode_to_browse_item(
         title=episode.title,
         can_play=True,
         can_expand=False,
+        thumbnail=episode.image_url or feed.image_url,
     )
 
 

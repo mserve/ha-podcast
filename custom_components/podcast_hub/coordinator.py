@@ -93,6 +93,7 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             data = await self._async_fetch(feed.url)
             parsed = await self.hass.async_add_executor_job(feedparser.parse, data)
             feed.title = parsed.feed.title or feed.name  # pyright: ignore[reportAttributeAccessIssue]
+            feed.image_url = self._feed_image_url(parsed)
             feed.episodes = self._build_episodes(parsed.entries, feed.max_episodes)
             self._fire_new_episode_events(feed)
             feed.last_error = None
@@ -143,6 +144,7 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             title=title,  # pyright: ignore[reportArgumentType]
             published=published,
             url=url,  # pyright: ignore[reportArgumentType]
+            image_url=self._entry_image_url(entry),
             summary=summary,  # pyright: ignore[reportArgumentType]
         )
 
@@ -159,6 +161,37 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         if not parsed:
             return None
         return datetime.fromtimestamp(calendar.timegm(parsed), tz=UTC)  # pyright: ignore[reportArgumentType]
+
+    def _feed_image_url(self, parsed: FeedParserDict) -> str | None:
+        image = parsed.feed.get("image", {}) if parsed.feed else {}
+        if isinstance(image, dict):
+            href = image.get("href") or image.get("url")
+            if href:
+                return href
+        itunes_image = parsed.feed.get("itunes_image") if parsed.feed else None
+        if isinstance(itunes_image, dict):
+            href = itunes_image.get("href")
+            if href:
+                return href
+        return None
+
+    def _entry_image_url(self, entry: FeedParserDict) -> str | None:
+        image = entry.get("image")
+        if isinstance(image, dict):
+            href = image.get("href") or image.get("url")
+            if href:
+                return href
+        itunes_image = entry.get("itunes_image")
+        if isinstance(itunes_image, dict):
+            href = itunes_image.get("href")
+            if href:
+                return href
+        media_thumbnail = entry.get("media_thumbnail")
+        if isinstance(media_thumbnail, list) and media_thumbnail:
+            url = media_thumbnail[0].get("url")
+            if url:
+                return url
+        return None
 
     def _fire_new_episode_events(self, feed: PodcastFeed) -> None:
         current_guids = {episode.guid for episode in feed.episodes}

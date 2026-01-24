@@ -93,6 +93,7 @@ async def test_coordinator_updates_and_sensor_attributes(hass: HomeAssistant) ->
     assert attrs["latest_episode_title"] == "Episode 1"
     assert attrs["latest_episode_url"] == "https://example.com/audio1.mp3"
     assert len(attrs["episodes"]) == 1
+    assert attrs["episodes"][0]["image_url"] is None
 
 
 @pytest.mark.asyncio
