@@ -20,6 +20,9 @@ FEED_XML = """<?xml version=\"1.0\"?>
 <rss version=\"2.0\">
   <channel>
     <title>Lage der Nation</title>
+    <image>
+      <url>https://example.com/feed.png</url>
+    </image>
     <item>
       <guid>episode-1</guid>
       <title>Episode 1</title>
@@ -94,6 +97,7 @@ async def test_coordinator_updates_and_sensor_attributes(hass: HomeAssistant) ->
     assert attrs["latest_episode_url"] == "https://example.com/audio1.mp3"
     assert len(attrs["episodes"]) == 1
     assert attrs["episodes"][0]["image_url"] is None
+    assert attrs["image_url"] == "https://example.com/feed.png"
 
 
 @pytest.mark.asyncio

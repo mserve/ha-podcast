@@ -139,6 +139,7 @@ class PodcastFeedSensor(PodcastHubEntity, SensorEntity):
         attrs = {
             "title": feed.title or feed.name,
             "feed_url": feed.url,
+            "image_url": feed.image_url,
             "latest_episode_title": latest.title if latest else None,
             "latest_episode_published": (
                 _format_dt(latest.published) if latest else None
