@@ -1,5 +1,5 @@
 {
-    "name": "ludeeus/integration_blueprint",
+    "name": "mserve/podcast_hub",
     "image": "mcr.microsoft.com/devcontainers/python:3.13",
     "postCreateCommand": "scripts/setup",
     "forwardPorts": [
@@ -10,6 +10,9 @@
             "label": "Home Assistant",
             "onAutoForward": "notify"
         }
+    },
+    "containerEnv": {
+        "TZ": "Europe/Berlin" // Set your local timezone here
     },
     "customizations": {
         "vscode": {

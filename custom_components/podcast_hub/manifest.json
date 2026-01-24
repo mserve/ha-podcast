@@ -1,0 +1,12 @@
+{
+  "domain": "podcast_hub",
+  "name": "Podcast Hub",
+  "codeowners": [
+    "@ludeeus"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/mserve/podcast_hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/mserve/podcast_hub/issues",
+  "version": "0.1.0"
+}

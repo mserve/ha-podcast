@@ -9,4 +9,16 @@ homeassistant:
 logger:
   default: info
   logs:
-    custom_components.integration_blueprint: debug
+    custom_components.podcast_hub: debug
+
+podcast_hub:
+  update_interval: 2
+  podcasts:
+    - id: lagedernation
+      url: "http://lagedernation.org/feed"
+      name: "Lage der Nation"
+      max_episodes: 50
+    - id: 39c3
+      url: "https://media.ccc.de/c/39c3/podcast/mp3.xml"
+      name: "39C3 Chaos Communication Congress"
+      max_episodes: 20
