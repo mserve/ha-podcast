@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.setup import async_setup_component
 
 from custom_components.podcast_hub.const import DOMAIN, EVENT_NEW_EPISODE
+
+pytestmark = pytest.mark.usefixtures("enable_custom_integrations")
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -23,6 +25,7 @@ FEED_XML = """<?xml version=\"1.0\"?>
       <title>Episode 1</title>
       <link>https://example.com/episode1</link>
       <enclosure url=\"https://example.com/audio1.mp3\" type=\"audio/mpeg\" />
+      <description>Episode 1 summary</description>
       <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
     </item>
   </channel>
@@ -38,6 +41,7 @@ FEED_XML_WITH_NEW = """<?xml version=\"1.0\"?>
       <title>Episode 2</title>
       <link>https://example.com/episode2</link>
       <enclosure url=\"https://example.com/audio2.mp3\" type=\"audio/mpeg\" />
+      <description>Episode 2 summary</description>
       <pubDate>Tue, 02 Jan 2024 00:00:00 GMT</pubDate>
     </item>
     <item>
@@ -45,6 +49,7 @@ FEED_XML_WITH_NEW = """<?xml version=\"1.0\"?>
       <title>Episode 1</title>
       <link>https://example.com/episode1</link>
       <enclosure url=\"https://example.com/audio1.mp3\" type=\"audio/mpeg\" />
+      <description>Episode 1 summary</description>
       <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
     </item>
   </channel>
@@ -138,3 +143,37 @@ async def test_new_episode_event_fires(hass: HomeAssistant) -> None:
     assert len(events) == 1
     assert events[0]["feed_id"] == "lage_der_nation"
     assert events[0]["episode"]["guid"] == "episode-2"
+
+
+@pytest.mark.asyncio
+async def test_per_feed_update_interval_skips_refresh(hass: HomeAssistant) -> None:
+    """Skip fetching when per-feed update interval has not elapsed."""
+    config = {
+        DOMAIN: {
+            "update_interval": 1,
+            "podcasts": [
+                {
+                    "id": "lage_der_nation",
+                    "name": "Lage der Nation",
+                    "url": "https://example.com/feed.xml",
+                    "max_episodes": 50,
+                    "update_interval": 60,
+                }
+            ],
+        }
+    }
+
+    async_fetch = AsyncMock(return_value=FEED_XML.encode())
+
+    with patch(
+        "custom_components.podcast_hub.coordinator.PodcastHubCoordinator._async_fetch",
+        new=async_fetch,
+    ):
+        assert await async_setup_component(hass, DOMAIN, config)
+        await hass.async_block_till_done()
+
+        coordinator = hass.data[DOMAIN]["coordinator"]
+        await coordinator.async_request_refresh()
+        await hass.async_block_till_done()
+
+    assert async_fetch.call_count == 1
