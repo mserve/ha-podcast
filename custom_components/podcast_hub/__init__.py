@@ -2,7 +2,7 @@
 Custom integration to integrate podcast_hub with Home Assistant.
 
 For more details about this integration, please refer to
-https://github.com/mserve/podcast_hub
+https://github.com/mserve/ha-podcast
 """
 
 from __future__ import annotations

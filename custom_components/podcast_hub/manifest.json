@@ -2,11 +2,11 @@
   "domain": "podcast_hub",
   "name": "Podcast Hub",
   "codeowners": [
-    "@ludeeus"
+    "@mserve"
   ],
   "config_flow": true,
-  "documentation": "https://github.com/mserve/podcast_hub",
+  "documentation": "https://github.com/mserve/ha-podcast",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/mserve/podcast_hub/issues",
+  "issue_tracker": "https://github.com/mserve/ha-podcast/issues",
   "version": "0.1.0"
 }
