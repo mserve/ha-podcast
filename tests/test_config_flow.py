@@ -122,5 +122,5 @@ async def test_config_flow_settings_entry(hass) -> None:  # noqa: ANN001
     )
     assert result["type"] == "create_entry"
     assert result["title"] == "Settings"
-    assert result["data"][CONF_UPDATE_INTERVAL] == 20
+    assert result["data"][CONF_UPDATE_INTERVAL] == 20  # noqa: PLR2004
     assert result["data"][CONF_MEDIA_TYPE] == "track"

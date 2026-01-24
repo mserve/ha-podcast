@@ -7,13 +7,12 @@ https://github.com/mserve/podcast_hub
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import discovery
-from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_ID,
@@ -34,7 +33,9 @@ from .coordinator import PodcastHubCoordinator
 from .podcast_hub import PodcastFeed, PodcastHub
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant, ServiceCall
+    from homeassistant.helpers.typing import ConfigType
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -112,7 +113,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Podcast Hub from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     data = hass.data[DOMAIN]
@@ -135,6 +136,7 @@ async def async_setup_entry(hass: HomeAssistant, entry) -> bool:
     await coordinator.async_request_refresh()
 
     if not data.get("service_registered"):
+
         async def _async_handle_reload(call: ServiceCall) -> None:  # noqa: ARG001
             try:
                 await coordinator.async_request_refresh()
@@ -148,7 +150,7 @@ async def async_setup_entry(hass: HomeAssistant, entry) -> bool:
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a Podcast Hub config entry."""
     data = hass.data.get(DOMAIN)
     if not data:
@@ -160,8 +162,10 @@ async def async_unload_entry(hass: HomeAssistant, entry) -> bool:
         return True
 
     hub: PodcastHub | None = data.get("hub")
-    if hub:
-        hub.feeds.pop(entry.data.get(CONF_ID), None)
+    if hub and hub.feeds:
+        feed_id = entry.data.get(CONF_ID)
+        if feed_id:
+            hub.feeds.pop(feed_id, None)
 
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if not unload_ok:

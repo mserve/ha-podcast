@@ -28,18 +28,26 @@ class PodcastHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None):
+    async def async_step_user(
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+    ) -> config_entries.ConfigFlowResult:
         """Handle the initial step."""
         return await self.async_step_menu()
 
-    async def async_step_menu(self, user_input: dict[str, Any] | None = None):
+    async def async_step_menu(
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+    ) -> config_entries.ConfigFlowResult:
         """Show menu for setup."""
         return self.async_show_menu(
             step_id="menu",
             menu_options=["add_feed", "settings"],
         )
 
-    async def async_step_add_feed(self, user_input: dict[str, Any] | None = None):
+    async def async_step_add_feed(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         """Handle adding a podcast feed."""
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -65,15 +73,19 @@ class PodcastHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_NAME): cv.string,
                 vol.Required(CONF_URL): cv.string,
-                vol.Optional(CONF_MAX_EPISODES, default=DEFAULT_MAX_EPISODES): vol.Coerce(
-                    int
-                ),
+                vol.Optional(
+                    CONF_MAX_EPISODES, default=DEFAULT_MAX_EPISODES
+                ): vol.Coerce(int),
                 vol.Optional(CONF_UPDATE_INTERVAL): vol.Coerce(int),
             }
         )
-        return self.async_show_form(step_id="add_feed", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="add_feed", data_schema=schema, errors=errors
+        )
 
-    async def async_step_settings(self, user_input: dict[str, Any] | None = None):
+    async def async_step_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         """Handle global settings."""
         if user_input is not None:
             settings_data = {
@@ -95,12 +107,12 @@ class PodcastHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         schema = vol.Schema(
             {
-                vol.Required(
-                    CONF_UPDATE_INTERVAL, default=default_value
-                ): vol.Coerce(int),
-                vol.Required(
-                    CONF_MEDIA_TYPE, default=default_media_type
-                ): vol.In(["track", "podcast"]),
+                vol.Required(CONF_UPDATE_INTERVAL, default=default_value): vol.Coerce(
+                    int
+                ),
+                vol.Required(CONF_MEDIA_TYPE, default=default_media_type): vol.In(
+                    ["track", "podcast"]
+                ),
             }
         )
         return self.async_show_form(step_id="settings", data_schema=schema)

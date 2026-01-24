@@ -17,13 +17,20 @@ from homeassistant.components.media_source import (
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import CONF_MEDIA_TYPE, DEFAULT_UPDATE_INTERVAL, DOMAIN, LOGGER, REQUEST_TIMEOUT
+from .const import (
+    CONF_MEDIA_TYPE,
+    DEFAULT_UPDATE_INTERVAL,
+    DOMAIN,
+    LOGGER,
+    REQUEST_TIMEOUT,
+)
+from .coordinator import PodcastHubCoordinator
+from .podcast_hub import PodcastHub
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
-    from .coordinator import PodcastHubCoordinator
-    from .podcast_hub import Episode, PodcastFeed, PodcastHub
+    from .podcast_hub import Episode, PodcastFeed
 
 
 PODCASTS_ROOT = "feeds"
