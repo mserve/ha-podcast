@@ -1,9 +1,16 @@
 # Podcast Hub
 
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
+[![Validate](https://github.com/mserve/ha-podcast/actions/workflows/validate.yml/badge.svg)](https://github.com/mserve/ha-podcast/actions/workflows/validate.yml)
+[![Lint](https://github.com/mserve/ha-podcast/actions/workflows/lint.yml/badge.svg)](https://github.com/mserve/ha-podcast/actions/workflows/lint.yml)
+[![Release](https://img.shields.io/github/v/release/mserve/ha-podcast)](https://github.com/mserve/ha-podcast/releases)
+[![Downloads](https://img.shields.io/github/downloads/mserve/ha-podcast/total)](https://github.com/mserve/ha-podcast/releases)
+[![License](https://img.shields.io/github/license/mserve/ha-podcast)](LICENSE)
+
 Podcast Hub is a Home Assistant custom integration that lets you manage podcast
-feeds (RSS/Atom) from `configuration.yaml`. It exposes each feed as a sensor,
-provides a Media Source browser for playback, and offers a reload service for
-manual refreshes.
+feeds (RSS/Atom) via the UI or `configuration.yaml`. It exposes each feed as a
+sensor, provides a Media Source browser for playback, and offers a reload
+service for manual refreshes.
 
 ## Why this exists
 
@@ -11,9 +18,22 @@ manual refreshes.
 - Browse episodes via Media Source and play them on media players
 - Use sensor attributes in automations (latest episode, episode list, etc.)
 
-## Configuration
+## Installation (HACS)
 
-Add the integration to your `configuration.yaml`:
+1. Add `mserve/ha-podcast` as a custom repository in HACS (category: Integration).
+2. Install **Podcast Hub** and restart Home Assistant.
+3. Add the integration in Settings → Devices & Services → Add Integration.
+
+## Configuration (UI)
+
+Use the UI to add podcast feeds. You can also create a **Settings** entry to set
+a global default update interval for all feeds.
+
+Per-feed update interval is optional; if not set, the global default is used.
+
+## Configuration (YAML)
+
+Add the integration to your `configuration.yaml` if you prefer YAML:
 
 ```yaml
 podcast_hub:
