@@ -59,6 +59,22 @@ async def async_setup_platform(
     async_add_entities(entities)
 
 
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry,  # noqa: ANN001
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up Podcast Hub sensors from a config entry."""
+    data = hass.data.get(DOMAIN)
+    if not data:
+        return
+    coordinator = data["coordinator"]
+    feed_id = entry.data.get("id")
+    if not feed_id:
+        return
+    async_add_entities([PodcastFeedSensor(coordinator, feed_id)])
+
+
 class PodcastFeedSensor(PodcastHubEntity, SensorEntity):
     """
     Sensor entity for a podcast feed.

@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import calendar
 from datetime import UTC, datetime, timedelta
-from re import L
 from typing import TYPE_CHECKING
 
 import async_timeout
@@ -130,7 +129,8 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         url = self._entry_audio_url(entry)
         if not url:
             LOGGER.warning(
-                "No audio URL found for episode: %s - check if this is a proper feed url",
+                "No audio URL found for episode: %s - check if this is a proper "
+                "feed url",
                 title,
             )
             url = entry.link or ""

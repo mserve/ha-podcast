@@ -8,6 +8,7 @@ https://github.com/mserve/podcast_hub
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+from datetime import timedelta
 
 import aiohttp
 from homeassistant.core import HomeAssistant
@@ -110,7 +111,13 @@ async def async_setup_entry(hass: HomeAssistant, entry) -> bool:
     """Set up Podcast Hub from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     data = hass.data[DOMAIN]
-    hub, coordinator = _ensure_hub_and_coordinator(hass, DEFAULT_UPDATE_INTERVAL)
+    if entry.unique_id == "settings":
+        hass.data[DOMAIN]["settings_entry"] = entry
+        _update_coordinator_interval(hass, entry.data.get(CONF_UPDATE_INTERVAL))
+        return True
+
+    global_interval = _get_global_update_interval(hass)
+    hub, coordinator = _ensure_hub_and_coordinator(hass, global_interval)
 
     feed = PodcastFeed(
         feed_id=entry.data[CONF_ID],
@@ -140,6 +147,11 @@ async def async_unload_entry(hass: HomeAssistant, entry) -> bool:
     """Unload a Podcast Hub config entry."""
     data = hass.data.get(DOMAIN)
     if not data:
+        return True
+
+    if entry.unique_id == "settings":
+        data.pop("settings_entry", None)
+        _update_coordinator_interval(hass, DEFAULT_UPDATE_INTERVAL)
         return True
 
     hub: PodcastHub | None = data.get("hub")
@@ -174,3 +186,20 @@ def _ensure_hub_and_coordinator(
 def _merge_feeds(hub: PodcastHub, feeds: list[PodcastFeed]) -> None:
     for feed in feeds:
         hub.feeds[feed.feed_id] = feed
+
+
+def _get_global_update_interval(hass: HomeAssistant) -> int:
+    data = hass.data.get(DOMAIN, {})
+    settings = data.get("settings_entry")
+    if settings:
+        return settings.data.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+    return DEFAULT_UPDATE_INTERVAL
+
+
+def _update_coordinator_interval(hass: HomeAssistant, interval: int | None) -> None:
+    data = hass.data.get(DOMAIN, {})
+    coordinator: PodcastHubCoordinator | None = data.get("coordinator")
+    if not coordinator:
+        return
+    minutes = interval or DEFAULT_UPDATE_INTERVAL
+    coordinator.update_interval = timedelta(minutes=minutes)
