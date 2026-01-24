@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import calendar
 from datetime import UTC, datetime, timedelta
+from re import L
 from typing import TYPE_CHECKING
 
 import async_timeout
@@ -13,7 +14,7 @@ from feedparser import FeedParserDict
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import LOGGER, REQUEST_TIMEOUT
+from .const import EVENT_NEW_EPISODE, LOGGER, REQUEST_TIMEOUT
 from .podcast_hub import Episode, PodcastFeed, PodcastHub
 
 if TYPE_CHECKING:
@@ -76,6 +77,7 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             update_interval=timedelta(minutes=update_interval),
         )
         self.hub = hub
+        self._known_guids: dict[str, set[str]] = {}
 
     async def _async_update_data(self) -> PodcastHub:
         tasks = [self._async_update_feed(feed) for feed in self.hub.feeds.values()]
@@ -88,6 +90,7 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             parsed = await self.hass.async_add_executor_job(feedparser.parse, data)
             feed.title = parsed.feed.title or feed.name  # pyright: ignore[reportAttributeAccessIssue]
             feed.episodes = self._build_episodes(parsed.entries, feed.max_episodes)
+            self._fire_new_episode_events(feed)
             feed.last_error = None
         except (TimeoutError, OSError, ValueError) as err:
             feed.last_error = str(err)
@@ -116,7 +119,14 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         if not guid:
             return None
         title = entry.title or "Untitled"
-        url = self._entry_audio_url(entry) or entry.link or ""
+        LOGGER.debug("Parsed episode: %s [%s]", title, guid)
+        url = self._entry_audio_url(entry)
+        if not url:
+            LOGGER.warning(
+                "No audio URL found for episode: %s - check if this is a proper feed url",
+                title,
+            )
+            url = entry.link or ""
         if not url:
             return None
         published = self._entry_published(entry)
@@ -134,6 +144,7 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             href = enclosure.href
             if href:
                 return href  # pyright: ignore[reportReturnType]
+        LOGGER.debug("No audio enclosure found for entry: %s", entry)
         return None
 
     def _entry_published(self, entry: FeedParserDict) -> datetime | None:
@@ -141,3 +152,25 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         if not parsed:
             return None
         return datetime.fromtimestamp(calendar.timegm(parsed), tz=UTC)  # pyright: ignore[reportArgumentType]
+
+    def _fire_new_episode_events(self, feed: PodcastFeed) -> None:
+        current_guids = {episode.guid for episode in feed.episodes}
+        previous_guids = self._known_guids.get(feed.feed_id)
+        self._known_guids[feed.feed_id] = current_guids
+        if previous_guids is None:
+            return
+        new_guids = current_guids - previous_guids
+        if not new_guids:
+            return
+        feed_title = feed.title or feed.name
+        for episode in feed.episodes:
+            if episode.guid not in new_guids:
+                continue
+            self.hass.bus.async_fire(
+                EVENT_NEW_EPISODE,
+                {
+                    "feed_id": feed.feed_id,
+                    "feed_title": feed_title,
+                    "episode": episode.as_dict(),
+                },
+            )

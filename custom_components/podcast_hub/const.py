@@ -21,8 +21,6 @@ DEFAULT_UPDATE_INTERVAL = 15
 DEFAULT_MAX_EPISODES = 50
 REQUEST_TIMEOUT = 20
 
-# PLATFORMS = ["sensor", "media_source"]  # noqa: ERA001
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 SERVICE_RELOAD = "reload_sources"
-
-MEDIA_CONTENT_ID_PREFIX = f"{DOMAIN}://"
+EVENT_NEW_EPISODE = "podcast_hub_new_episode"

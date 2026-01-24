@@ -1,15 +1,10 @@
-"""
-Media source integration for Podcast Hub.
-
-This module provides functionality to browse and resolve media
-for podcast feeds, including handling episodes and their metadata.
-"""
+"""Media source integration for Podcast Hub."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 import async_timeout
 from homeassistant.components.media_player.const import MediaClass, MediaType
@@ -22,7 +17,7 @@ from homeassistant.components.media_source import (
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, LOGGER, MEDIA_CONTENT_ID_PREFIX, REQUEST_TIMEOUT
+from .const import DOMAIN, LOGGER, REQUEST_TIMEOUT
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -67,7 +62,7 @@ class PodcastHubMediaSource(MediaSource):
 
     async def async_browse_media(self, item: MediaSourceItem) -> BrowseMediaSource:
         """Return a browse tree for the requested media content."""
-        path = _strip_prefix(item.media_content_id)
+        path = _normalize_identifier(item.identifier)
         if not path or path == "/":
             return self._browse_root()
 
@@ -86,12 +81,12 @@ class PodcastHubMediaSource(MediaSource):
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
         """Resolve a media_content_id into a playable URL."""
-        if item.media_content_id is None:
-            msg = "No media content id provided"
+        if not item.identifier:
+            msg = "No media content identifier provided"
             raise MediaSourceError(msg)
-        parsed = _parse_episode_id(item.media_content_id)
+        parsed = _parse_episode_id(item.identifier)
         if not parsed.feed_id or not parsed.item_id:
-            msg = "Invalid media content id"
+            msg = f"Invalid media content id {item.media_content_id}"
             raise MediaSourceError(msg)
 
         feed = self.hub.get_feed(parsed.feed_id)
@@ -118,28 +113,26 @@ class PodcastHubMediaSource(MediaSource):
             msg = "Unable to resolve media"
             raise MediaSourceError(msg) from err
 
-        return PlayMedia(final_url, mime_type)
+        return PlayMedia(url=final_url, mime_type=mime_type)
 
     def _browse_root(self) -> BrowseMediaSource:
         return BrowseMediaSource(
             domain=DOMAIN,
+            identifier=None,
             media_class=MediaClass.DIRECTORY,
-            media_content_id=MEDIA_CONTENT_ID_PREFIX,
-            media_content_type=MediaType.EPISODE,
+            media_content_type="directory",
             title="Podcast Hub",
             can_play=False,
             can_expand=True,
-            identifier=None,
             children=[
                 BrowseMediaSource(
                     domain=DOMAIN,
+                    identifier=_join_identifier(PODCASTS_ROOT),
                     media_class=MediaClass.DIRECTORY,
-                    media_content_id=_join_path(PODCASTS_ROOT),
-                    media_content_type=MediaType.EPISODE,
+                    media_content_type="directory",
                     title="Podcasts",
                     can_play=False,
                     can_expand=True,
-                    identifier=None,
                 )
             ],
         )
@@ -148,24 +141,24 @@ class PodcastHubMediaSource(MediaSource):
         children = [
             BrowseMediaSource(
                 domain=DOMAIN,
+                identifier=_join_identifier(feed.feed_id),
                 media_class=MediaClass.DIRECTORY,
-                media_content_id=_join_path(feed.feed_id),
+                media_content_type="directory",
                 title=feed.title or feed.name,
                 can_play=False,
                 can_expand=True,
-                identifier=None,
             )
             for feed in self.hub.feeds.values()
         ]
         return BrowseMediaSource(
             domain=DOMAIN,
+            identifier=_join_identifier(PODCASTS_ROOT),
             media_class=MediaClass.DIRECTORY,
-            media_content_id=_join_path(PODCASTS_ROOT),
+            media_content_type="directory",
             title="Podcasts",
             can_play=False,
             can_expand=True,
             children=children,
-            identifier=None,
         )
 
     def _browse_podcast(self, feed_id: str) -> BrowseMediaSource:
@@ -176,30 +169,30 @@ class PodcastHubMediaSource(MediaSource):
 
         return BrowseMediaSource(
             domain=DOMAIN,
+            identifier=_join_identifier(feed.feed_id),
             media_class=MediaClass.DIRECTORY,
-            media_content_id=_join_path(feed.feed_id),
+            media_content_type="directory",
             title=feed.title or feed.name,
             can_play=False,
             can_expand=True,
-            identifier=None,
             children=[
                 BrowseMediaSource(
                     domain=DOMAIN,
+                    identifier=_join_identifier(feed.feed_id, LATEST_KEY),
                     media_class=MediaClass.DIRECTORY,
-                    media_content_id=_join_path(feed.feed_id, LATEST_KEY),
+                    media_content_type="directory",
                     title="Latest",
                     can_play=False,
                     can_expand=True,
-                    identifier=None,
                 ),
                 BrowseMediaSource(
                     domain=DOMAIN,
+                    identifier=_join_identifier(feed.feed_id, ALL_KEY),
                     media_class=MediaClass.DIRECTORY,
-                    media_content_id=_join_path(feed.feed_id, ALL_KEY),
+                    media_content_type="directory",
                     title="All Episodes",
                     can_play=False,
                     can_expand=True,
-                    identifier=None,
                 ),
             ],
         )
@@ -218,47 +211,51 @@ class PodcastHubMediaSource(MediaSource):
         title = "Latest" if mode == LATEST_KEY else "All Episodes"
         return BrowseMediaSource(
             domain=DOMAIN,
+            identifier=_join_identifier(feed.feed_id, mode),
             media_class=MediaClass.DIRECTORY,
-            media_content_id=_join_path(feed.feed_id, mode),
+            media_content_type="directory",
             title=title,
             can_play=False,
             can_expand=True,
             children=children,
-            identifier=None,
         )
 
 
 def _episode_to_browse_item(feed: PodcastFeed, episode: Episode) -> BrowseMediaSource:
     return BrowseMediaSource(
         domain=DOMAIN,
+        identifier=_join_identifier(feed.feed_id, episode.guid),
         media_class=MediaClass.PODCAST,
-        media_content_id=_join_path(feed.feed_id, episode.guid),
         media_content_type=MediaType.PODCAST,
         title=episode.title,
         can_play=True,
         can_expand=False,
-        identifier=None,
     )
 
 
-def _strip_prefix(content_id: str | None) -> str:
-    if not content_id:
-        return ""
-    if content_id.startswith(MEDIA_CONTENT_ID_PREFIX):
-        return unquote(content_id[len(MEDIA_CONTENT_ID_PREFIX) :])
-    return unquote(content_id)
+def _normalize_identifier(identifier: str | None) -> str:
+    """Return a normalized identifier path for media source handling."""
+    return identifier or ""
 
 
-def _parse_episode_id(content_id: str) -> ParsedContentId:
-    path = _strip_prefix(content_id)
+def _parse_episode_id(identifier: str) -> ParsedContentId:
+    path = _normalize_identifier(identifier)
     parts = [part for part in path.split("/") if part]
-    if len(parts) != EPISODE_PATH_PARTS or parts[1] in (LATEST_KEY, ALL_KEY):
+    if len(parts) == EPISODE_PATH_PARTS:
+        feed_id, item_id = parts
+    elif len(parts) == EPISODE_PATH_PARTS + 1 and parts[0] == PODCASTS_ROOT:
+        feed_id, item_id = parts[1], parts[2]
+    else:
         return ParsedContentId(None, None)
-    return ParsedContentId(parts[0], parts[1])
+    feed_id = unquote(feed_id)
+    item_id = unquote(item_id)
+    if item_id in (LATEST_KEY, ALL_KEY):
+        return ParsedContentId(None, None)
+    return ParsedContentId(feed_id, item_id)
 
 
-def _join_path(*parts: str) -> str:
-    return MEDIA_CONTENT_ID_PREFIX + "/".join(parts)
+def _join_identifier(*parts: str) -> str:
+    return "/".join(quote(part, safe="") for part in parts)
 
 
 def _find_episode(feed: PodcastFeed, guid: str) -> Episode | None:

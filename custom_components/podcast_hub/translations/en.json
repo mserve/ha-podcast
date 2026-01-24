@@ -1,0 +1,8 @@
+{
+  "services": {
+    "reload_sources": {
+      "name": "Reload sources",
+      "description": "Refresh all configured podcast feeds."
+    }
+  }
+}

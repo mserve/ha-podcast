@@ -15,7 +15,7 @@ podcast_hub:
   update_interval: 2
   podcasts:
     - id: lagedernation
-      url: "http://lagedernation.org/feed"
+      url: "https://feeds.lagedernation.org/feeds/ldn-mp3.xml"
       name: "Lage der Nation"
       max_episodes: 50
     - id: 39c3
