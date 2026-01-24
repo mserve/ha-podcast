@@ -85,6 +85,11 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         return self.hub
 
     async def _async_update_feed(self, feed: PodcastFeed) -> None:
+        now = datetime.now(UTC)
+        if feed.update_interval and feed.last_update:
+            min_interval = timedelta(minutes=feed.update_interval)
+            if now - feed.last_update < min_interval:
+                return
         try:
             data = await self._async_fetch(feed.url)
             parsed = await self.hass.async_add_executor_job(feedparser.parse, data)
@@ -95,6 +100,8 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         except (TimeoutError, OSError, ValueError) as err:
             feed.last_error = str(err)
             LOGGER.warning("Failed to update feed %s: %s", feed.feed_id, err)
+        finally:
+            feed.last_update = now
 
     async def _async_fetch(self, url: str) -> bytes:
         session = async_get_clientsession(self.hass)

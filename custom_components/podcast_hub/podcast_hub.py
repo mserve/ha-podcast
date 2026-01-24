@@ -43,6 +43,7 @@ class PodcastFeed:
     episodes: list[Episode] = field(default_factory=list)
     last_error: str | None = None
     update_interval: int | None = None
+    last_update: datetime | None = None
 
 
 class PodcastHub:
