@@ -261,6 +261,11 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     if entry.unique_id == "settings":
         settings = entry.options or entry.data
         _update_coordinator_interval(hass, settings.get(CONF_UPDATE_INTERVAL))
+    else:
+        source = entry.options or entry.data
+        new_title = source.get(CONF_NAME)
+        if new_title and entry.title != new_title:
+            hass.config_entries.async_update_entry(entry, title=new_title)
     await hass.config_entries.async_reload(entry.entry_id)
 
 

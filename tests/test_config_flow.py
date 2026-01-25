@@ -150,7 +150,7 @@ async def test_options_flow_updates_settings(hass) -> None:  # noqa: ANN001
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] == "form"
-    assert result["step_id"] == "init"
+    assert result["step_id"] == "settings"
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
@@ -161,3 +161,97 @@ async def test_options_flow_updates_settings(hass) -> None:  # noqa: ANN001
     updated = hass.config_entries.async_get_entry(entry.entry_id)
     assert updated.options[CONF_UPDATE_INTERVAL] == 30  # noqa: PLR2004
     assert updated.options[CONF_MEDIA_TYPE] == "podcast"
+
+
+@pytest.mark.asyncio
+async def test_options_flow_updates_feed(hass) -> None:  # noqa: ANN001
+    """Update feed details through the options flow."""
+    user_input = {
+        CONF_NAME: "Lage der Nation",
+        CONF_URL: "https://example.com/feed.xml",
+        CONF_MAX_EPISODES: 50,
+        CONF_UPDATE_INTERVAL: 15,
+    }
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}, data=user_input
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "add_feed"}
+    )
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "add_feed"}, data=user_input
+    )
+    assert result["type"] == "create_entry"
+
+    entry = next(
+        entry
+        for entry in hass.config_entries.async_entries(DOMAIN)
+        if entry.unique_id != "settings"
+    )
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == "form"
+    assert result["step_id"] == "feed"
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_NAME: "Lage der Nation Updated",
+            CONF_URL: "https://example.com/new.xml",
+            CONF_MAX_EPISODES: 40,
+            CONF_UPDATE_INTERVAL: 10,
+        },
+    )
+    assert result["type"] == "create_entry"
+
+    updated = hass.config_entries.async_get_entry(entry.entry_id)
+    assert updated.data[CONF_ID] == "lage_der_nation"
+    assert updated.options[CONF_NAME] == "Lage der Nation Updated"
+    assert updated.options[CONF_URL] == "https://example.com/new.xml"
+
+
+@pytest.mark.asyncio
+async def test_options_flow_accepts_empty_feed_interval(hass) -> None:  # noqa: ANN001
+    """Allow clearing per-feed update interval in options."""
+    user_input = {
+        CONF_NAME: "Lage der Nation",
+        CONF_URL: "https://example.com/feed.xml",
+        CONF_MAX_EPISODES: 50,
+        CONF_UPDATE_INTERVAL: 15,
+    }
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}, data=user_input
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "add_feed"}
+    )
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "add_feed"}, data=user_input
+    )
+    assert result["type"] == "create_entry"
+
+    entry = next(
+        entry
+        for entry in hass.config_entries.async_entries(DOMAIN)
+        if entry.unique_id != "settings"
+    )
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == "form"
+    assert result["step_id"] == "feed"
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_NAME: "Lage der Nation",
+            CONF_URL: "https://example.com/feed.xml",
+            CONF_MAX_EPISODES: 50,
+            CONF_UPDATE_INTERVAL: None,
+        },
+    )
+    assert result["type"] == "create_entry"
+
+    updated = hass.config_entries.async_get_entry(entry.entry_id)
+    assert updated.options[CONF_UPDATE_INTERVAL] is None

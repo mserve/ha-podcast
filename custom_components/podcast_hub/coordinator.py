@@ -94,12 +94,16 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             parsed = await self.hass.async_add_executor_job(feedparser.parse, data)
             feed.title = parsed.feed.title or feed.name  # pyright: ignore[reportAttributeAccessIssue]
             feed.image_url = self._feed_image_url(parsed)
-            feed.episodes = self._build_episodes(parsed.entries, feed.max_episodes)
+            feed.episodes = self._build_episodes(
+                parsed.entries, feed.max_episodes, feed
+            )
             self._fire_new_episode_events(feed)
             feed.last_error = None
         except (TimeoutError, OSError, ValueError) as err:
             feed.last_error = str(err)
-            LOGGER.warning("Failed to update feed %s: %s", feed.feed_id, err)
+            LOGGER.warning(
+                "Failed to update feed %s (%s): %s", feed.name, feed.feed_id, err
+            )
         finally:
             feed.last_update = now
 
@@ -110,28 +114,38 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             return await resp.read()
 
     def _build_episodes(
-        self, entries: list[FeedParserDict], max_episodes: int
+        self, entries: list[FeedParserDict], max_episodes: int, feed: PodcastFeed
     ) -> list[Episode]:
         items: list[Episode] = []
         for entry in entries:
-            episode = self._entry_to_episode(entry)
+            episode = self._entry_to_episode(entry, feed)
             if episode:
                 items.append(episode)
             if len(items) >= max_episodes:
                 break
         return items
 
-    def _entry_to_episode(self, entry: FeedParserDict) -> Episode | None:
+    def _entry_to_episode(
+        self, entry: FeedParserDict, feed: PodcastFeed
+    ) -> Episode | None:
         guid = entry.id or entry.guid or entry.link
         if not guid:
             return None
         title = entry.title or "Untitled"
-        LOGGER.debug("Parsed episode: %s [%s]", title, guid)
-        url = self._entry_audio_url(entry)
+        LOGGER.debug(
+            "Parsed episode for %s (%s): %s [%s]",
+            feed.name,
+            feed.feed_id,
+            title,
+            guid,
+        )
+        url = self._entry_audio_url(entry, feed)
         if not url:
             LOGGER.warning(
-                "No audio URL found for episode: %s - check if this is a proper "
-                "feed url",
+                "No audio URL found for %s (%s) episode: %s - check if this is a "
+                "proper feed url",
+                feed.name,
+                feed.feed_id,
                 title,
             )
             url = entry.link or ""
@@ -148,12 +162,17 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             summary=summary,  # pyright: ignore[reportArgumentType]
         )
 
-    def _entry_audio_url(self, entry: FeedParserDict) -> str | None:
+    def _entry_audio_url(self, entry: FeedParserDict, feed: PodcastFeed) -> str | None:
         for enclosure in entry.enclosures or []:
             href = enclosure.href
             if href:
                 return href  # pyright: ignore[reportReturnType]
-        LOGGER.debug("No audio enclosure found for entry: %s", entry)
+        LOGGER.debug(
+            "No audio enclosure found for %s (%s) entry: %s",
+            feed.name,
+            feed.feed_id,
+            entry,
+        )
         return None
 
     def _entry_published(self, entry: FeedParserDict) -> datetime | None:
