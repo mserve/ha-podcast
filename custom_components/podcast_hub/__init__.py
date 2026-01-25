@@ -28,6 +28,7 @@ from .const import (
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
     LOGGER,
+    MAX_MAX_EPISODES,
     PLATFORMS,
     SERVICE_RELOAD,
 )
@@ -44,7 +45,9 @@ PODCAST_SCHEMA = vol.Schema(
         vol.Required(CONF_ID): cv.slug,
         vol.Required(CONF_NAME): cv.string,
         vol.Required(CONF_URL): cv.url,
-        vol.Optional(CONF_MAX_EPISODES, default=DEFAULT_MAX_EPISODES): vol.Coerce(int),
+        vol.Optional(CONF_MAX_EPISODES, default=DEFAULT_MAX_EPISODES): vol.All(
+            vol.Coerce(int), vol.Clamp(min=1, max=MAX_MAX_EPISODES)
+        ),
         vol.Optional(CONF_UPDATE_INTERVAL): vol.Coerce(int),
     }
 )
@@ -108,7 +111,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if not feed_id or not name or not url:
             LOGGER.warning("Skipping invalid podcast config: %s", item)
             continue
-        max_episodes = item.get(CONF_MAX_EPISODES, DEFAULT_MAX_EPISODES)
+        max_episodes = _coerce_max_episodes(
+            item.get(CONF_MAX_EPISODES, DEFAULT_MAX_EPISODES)
+        )
         feed_update_interval = item.get(CONF_UPDATE_INTERVAL, None)
         feeds.append(
             PodcastFeed(
@@ -150,18 +155,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data = hass.data[DOMAIN]
     if entry.unique_id == "settings":
         hass.data[DOMAIN]["settings_entry"] = entry
-        _update_coordinator_interval(hass, entry.data.get(CONF_UPDATE_INTERVAL))
+        settings = entry.options or entry.data
+        _update_coordinator_interval(hass, settings.get(CONF_UPDATE_INTERVAL))
+        entry.async_on_unload(entry.add_update_listener(_async_update_listener))
         return True
 
     global_interval = _get_global_update_interval(hass)
     hub, coordinator = _ensure_hub_and_coordinator(hass, global_interval)
 
+    source = entry.options or entry.data
     feed = PodcastFeed(
         feed_id=entry.data[CONF_ID],
-        name=entry.data[CONF_NAME],
-        url=entry.data[CONF_URL],
-        max_episodes=entry.data.get(CONF_MAX_EPISODES, DEFAULT_MAX_EPISODES),
-        update_interval=entry.data.get(CONF_UPDATE_INTERVAL),
+        name=source.get(CONF_NAME, entry.data[CONF_NAME]),
+        url=source.get(CONF_URL, entry.data[CONF_URL]),
+        max_episodes=_coerce_max_episodes(
+            source.get(CONF_MAX_EPISODES, DEFAULT_MAX_EPISODES)
+        ),
+        update_interval=source.get(CONF_UPDATE_INTERVAL),
     )
     hub.feeds[feed.feed_id] = feed
     await coordinator.async_request_refresh()
@@ -178,6 +188,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         data["service_registered"] = True
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
 
 
@@ -232,7 +243,8 @@ def _get_global_update_interval(hass: HomeAssistant) -> int:
     data = hass.data.get(DOMAIN, {})
     settings = data.get("settings_entry")
     if settings:
-        return settings.data.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+        source = settings.options or settings.data
+        return source.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
     return DEFAULT_UPDATE_INTERVAL
 
 
@@ -243,3 +255,18 @@ def _update_coordinator_interval(hass: HomeAssistant, interval: int | None) -> N
         return
     minutes = interval or DEFAULT_UPDATE_INTERVAL
     coordinator.update_interval = timedelta(minutes=minutes)
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    if entry.unique_id == "settings":
+        settings = entry.options or entry.data
+        _update_coordinator_interval(hass, settings.get(CONF_UPDATE_INTERVAL))
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _coerce_max_episodes(value: int | None) -> int:
+    try:
+        coerced = int(value) if value is not None else DEFAULT_MAX_EPISODES
+    except (TypeError, ValueError):
+        coerced = DEFAULT_MAX_EPISODES
+    return max(1, min(coerced, MAX_MAX_EPISODES))

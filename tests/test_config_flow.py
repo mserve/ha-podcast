@@ -124,3 +124,40 @@ async def test_config_flow_settings_entry(hass) -> None:  # noqa: ANN001
     assert result["title"] == "Settings"
     assert result["data"][CONF_UPDATE_INTERVAL] == 20  # noqa: PLR2004
     assert result["data"][CONF_MEDIA_TYPE] == "track"
+
+
+@pytest.mark.asyncio
+async def test_options_flow_updates_settings(hass) -> None:  # noqa: ANN001
+    """Update settings through the options flow."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}, data={}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "settings"}
+    )
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": "settings"},
+        data={CONF_UPDATE_INTERVAL: 20, CONF_MEDIA_TYPE: "track"},
+    )
+    assert result["type"] == "create_entry"
+
+    entry = next(
+        entry
+        for entry in hass.config_entries.async_entries(DOMAIN)
+        if entry.unique_id == "settings"
+    )
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_UPDATE_INTERVAL: 30, CONF_MEDIA_TYPE: "podcast"},
+    )
+    assert result["type"] == "create_entry"
+
+    updated = hass.config_entries.async_get_entry(entry.entry_id)
+    assert updated.options[CONF_UPDATE_INTERVAL] == 30  # noqa: PLR2004
+    assert updated.options[CONF_MEDIA_TYPE] == "podcast"

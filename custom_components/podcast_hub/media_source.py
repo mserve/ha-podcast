@@ -237,7 +237,10 @@ class PodcastHubMediaSource(MediaSource):
 
     def _episode_media_type(self) -> str:
         settings = self.hass.data.get(DOMAIN, {}).get("settings_entry")
-        configured = settings.data.get(CONF_MEDIA_TYPE) if settings else None
+        configured = None
+        if settings:
+            source = settings.options or settings.data
+            configured = source.get(CONF_MEDIA_TYPE)
         if not configured:
             configured = self.hass.data.get(DOMAIN, {}).get("media_type")
         if configured == "podcast":

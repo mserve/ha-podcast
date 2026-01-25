@@ -27,7 +27,9 @@ service for manual refreshes.
 ## Configuration (UI)
 
 Use the UI to add podcast feeds. You can also create a **Settings** entry to set
-a global default update interval for all feeds.
+a global default update interval and media type for all feeds. After creating the
+Settings entry, use the integration **Options** to change these defaults later
+without affecting your feed entries.
 
 Per-feed update interval is optional; if not set, the global default is used.
 
@@ -49,11 +51,13 @@ podcast_hub:
 ### Options
 
 - `update_interval` (int, minutes, optional): How often to refresh all feeds.
+- `media_type` (str, optional): `track` (audio/*, Sonos friendly) or `podcast`.
 - `podcasts` (list, required): Podcast feed definitions.
   - `id` (str, required): Unique feed id (used in entity ids and media paths).
   - `name` (str, required): Friendly name shown in UI.
   - `url` (str, required): RSS/Atom feed URL.
-  - `max_episodes` (int, optional): Maximum number of episodes to keep per feed.
+  - `max_episodes` (int, optional): Maximum number of episodes to keep per feed
+    (clamped to 1-500).
   - `update_interval` (int, optional): Per-feed override (minutes).
 
 ## Media browsing and playback
@@ -78,6 +82,9 @@ This integration ships a blueprint to play the latest episode on a media player:
 ```
 blueprints/automation/podcast_hub/play_latest_episode.yaml
 ```
+
+Note: HACS does not install blueprints automatically. Import the blueprint in
+Home Assistant or copy it into your `config/blueprints/automation/` folder.
 
 ## Entity overview
 

@@ -50,5 +50,30 @@
       "already_configured": "This feed is already configured.",
       "invalid_url": "Please enter a valid URL."
     }
+  },
+  "options": {
+    "step": {
+      "settings": {
+        "title": "Podcast Hub settings",
+        "description": "Update the global defaults for all feeds.",
+        "data": {
+          "update_interval": "Default update interval (minutes)",
+          "media_type": "Episode media type"
+        },
+        "data_description": {
+          "media_type": "Use \"track\" for audio/* (best compatibility with Sonos), or \"podcast\" for Podcast."
+        }
+      },
+      "feed": {
+        "title": "Podcast feed settings",
+        "description": "Update this feed's details.",
+        "data": {
+          "name": "Name",
+          "url": "Feed URL",
+          "max_episodes": "Maximum episodes",
+          "update_interval": "Update interval (minutes)"
+        }
+      }
+    }
   }
 }

@@ -141,10 +141,12 @@ class PodcastFeedSensor(PodcastHubEntity, SensorEntity):
             "feed_url": feed.url,
             "image_url": feed.image_url,
             "latest_episode_title": latest.title if latest else None,
+            "latest_episode_guid": latest.guid if latest else None,
             "latest_episode_published": (
                 _format_dt(latest.published) if latest else None
             ),
             "latest_episode_url": latest.url if latest else None,
+            "last_update": _format_dt(feed.last_update),
             "episodes": [_episode_to_dict(ep) for ep in feed.episodes],
         }
         if feed.last_error:

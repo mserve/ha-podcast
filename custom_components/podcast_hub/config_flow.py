@@ -18,6 +18,7 @@ from .const import (
     DEFAULT_MAX_EPISODES,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
+    MAX_MAX_EPISODES,
 )
 
 CONF_SETTINGS = "settings"
@@ -27,6 +28,13 @@ class PodcastHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Podcast Hub."""
 
     VERSION = 1
+
+    @staticmethod
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        """Return the options flow handler."""
+        return PodcastHubOptionsFlow(config_entry)
 
     async def async_step_user(
         self,
@@ -73,10 +81,10 @@ class PodcastHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_NAME): cv.string,
                 vol.Required(CONF_URL): cv.string,
-                vol.Optional(
-                    CONF_MAX_EPISODES, default=DEFAULT_MAX_EPISODES
-                ): vol.Coerce(int),
-                vol.Optional(CONF_UPDATE_INTERVAL): vol.Coerce(int),
+                vol.Optional(CONF_MAX_EPISODES, default=DEFAULT_MAX_EPISODES): vol.All(
+                    vol.Coerce(int), vol.Clamp(min=1, max=MAX_MAX_EPISODES)
+                ),
+                vol.Optional(CONF_UPDATE_INTERVAL): vol.Any(None, vol.Coerce(int)),
             }
         )
         return self.async_show_form(
@@ -141,3 +149,74 @@ def _generate_feed_id(name: str, url: str, existing: set[str]) -> str:
         candidate = f"{base}_{counter}"
         counter += 1
     return candidate
+
+
+class PodcastHubOptionsFlow(config_entries.OptionsFlow):
+    """Handle options for Podcast Hub settings."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize the options flow."""
+        self._config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle the first step of the options flow."""
+        if self._config_entry.unique_id == CONF_SETTINGS:
+            return await self.async_step_settings(user_input)
+        return await self.async_step_feed(user_input)
+
+    async def async_step_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle options for global settings."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        source = self._config_entry.options or self._config_entry.data
+        default_value = source.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+        default_media_type = source.get(CONF_MEDIA_TYPE, "track")
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_UPDATE_INTERVAL, default=default_value): vol.Coerce(
+                    int
+                ),
+                vol.Required(CONF_MEDIA_TYPE, default=default_media_type): vol.In(
+                    ["track", "podcast"]
+                ),
+            }
+        )
+        return self.async_show_form(step_id="settings", data_schema=schema)
+
+    async def async_step_feed(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle options for a feed entry."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                cv.url(user_input[CONF_URL])
+            except vol.Invalid:
+                errors[CONF_URL] = "invalid_url"
+
+            if not errors:
+                return self.async_create_entry(title="", data=user_input)
+
+        source = self._config_entry.options or self._config_entry.data
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_NAME, default=source.get(CONF_NAME, "")): cv.string,
+                vol.Required(CONF_URL, default=source.get(CONF_URL, "")): cv.string,
+                vol.Optional(
+                    CONF_MAX_EPISODES,
+                    default=source.get(CONF_MAX_EPISODES, DEFAULT_MAX_EPISODES),
+                ): vol.All(vol.Coerce(int), vol.Clamp(min=1, max=MAX_MAX_EPISODES)),
+                vol.Optional(
+                    CONF_UPDATE_INTERVAL,
+                    default=source.get(CONF_UPDATE_INTERVAL),
+                ): vol.Any(None, vol.Coerce(int)),
+            }
+        )
+        return self.async_show_form(
+            step_id="feed", data_schema=schema, errors=errors
+        )

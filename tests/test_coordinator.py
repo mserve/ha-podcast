@@ -94,7 +94,9 @@ async def test_coordinator_updates_and_sensor_attributes(hass: HomeAssistant) ->
     assert attrs["title"] == "Lage der Nation"
     assert attrs["feed_url"] == "https://example.com/feed.xml"
     assert attrs["latest_episode_title"] == "Episode 1"
+    assert attrs["latest_episode_guid"] == "episode-1"
     assert attrs["latest_episode_url"] == "https://example.com/audio1.mp3"
+    assert attrs["last_update"] is not None
     assert len(attrs["episodes"]) == 1
     assert attrs["episodes"][0]["image_url"] is None
     assert attrs["image_url"] == "https://example.com/feed.png"
