@@ -32,6 +32,7 @@ Settings entry, use the integration **Options** to change these defaults later
 without affecting your feed entries.
 
 Per-feed update interval is optional; if not set, the global default is used.
+You can also set **Refresh times** to fetch feeds at specific local times.
 
 ## Configuration (YAML)
 
@@ -46,6 +47,9 @@ podcast_hub:
       name: Lage der Nation
       url: https://example.com/feed.xml
       max_episodes: 50
+      refresh_times:
+        - "08:30"
+        - "18:00"
 ```
 
 ### Options
@@ -59,6 +63,7 @@ podcast_hub:
   - `max_episodes` (int, optional): Maximum number of episodes to keep per feed
     (clamped to 1-500).
   - `update_interval` (int, optional): Per-feed override (minutes).
+  - `refresh_times` (list, optional): Refresh at specific local times (`HH:MM`).
 
 ## Media browsing and playback
 

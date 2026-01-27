@@ -12,6 +12,7 @@ DOMAIN = "podcast_hub"
 
 CONF_PODCASTS = "podcasts"
 CONF_UPDATE_INTERVAL = "update_interval"
+CONF_REFRESH_TIMES = "refresh_times"
 CONF_MAX_EPISODES = "max_episodes"
 CONF_ID = "id"
 CONF_NAME = "name"

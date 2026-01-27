@@ -21,7 +21,11 @@
           "name": "Name",
           "url": "Feed URL",
           "max_episodes": "Maximum episodes",
+          "refresh_times": "Refresh times (HH:MM list)",
           "update_interval": "Update interval (minutes)"
+        },
+        "data_description": {
+          "refresh_times": "Add one or more local times."
         }
       },
       "add_feed": {
@@ -31,7 +35,11 @@
           "name": "Name",
           "url": "Feed URL",
           "max_episodes": "Maximum episodes",
+          "refresh_times": "Refresh times (HH:MM list)",
           "update_interval": "Update interval (minutes)"
+        },
+        "data_description": {
+          "refresh_times": "Add one or more local times."
         }
       },
       "settings": {
@@ -48,7 +56,8 @@
     },
     "error": {
       "already_configured": "This feed is already configured.",
-      "invalid_url": "Please enter a valid URL."
+      "invalid_url": "Please enter a valid URL.",
+      "invalid_time": "Please enter times in HH:MM format."
     }
   },
   "options": {
@@ -71,9 +80,16 @@
           "name": "Name",
           "url": "Feed URL",
           "max_episodes": "Maximum episodes",
+          "refresh_times": "Refresh times (HH:MM list)",
           "update_interval": "Update interval (minutes)"
+        },
+        "data_description": {
+          "refresh_times": "Add one or more local times."
         }
       }
+    },
+    "error": {
+      "invalid_time": "Please enter times in HH:MM format."
     }
   }
 }

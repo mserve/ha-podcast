@@ -9,6 +9,7 @@ from custom_components.podcast_hub.const import (
     CONF_MAX_EPISODES,
     CONF_MEDIA_TYPE,
     CONF_NAME,
+    CONF_REFRESH_TIMES,
     CONF_UPDATE_INTERVAL,
     CONF_URL,
     DOMAIN,
@@ -24,6 +25,7 @@ async def test_config_flow_creates_entry(hass) -> None:  # noqa: ANN001
         CONF_NAME: "Lage der Nation",
         CONF_URL: "https://example.com/feed.xml",
         CONF_MAX_EPISODES: 50,
+        CONF_REFRESH_TIMES: [{"time": "08:30"}, {"time": "18:00"}],
         CONF_UPDATE_INTERVAL: 15,
     }
 
@@ -51,6 +53,7 @@ async def test_config_flow_creates_entry(hass) -> None:  # noqa: ANN001
     assert result["data"][CONF_NAME] == user_input[CONF_NAME]
     assert result["data"][CONF_URL] == user_input[CONF_URL]
     assert result["data"][CONF_MAX_EPISODES] == user_input[CONF_MAX_EPISODES]
+    assert result["data"][CONF_REFRESH_TIMES] == ["08:30", "18:00"]
     assert result["data"][CONF_UPDATE_INTERVAL] == user_input[CONF_UPDATE_INTERVAL]
 
 
@@ -200,6 +203,7 @@ async def test_options_flow_updates_feed(hass) -> None:  # noqa: ANN001
             CONF_NAME: "Lage der Nation Updated",
             CONF_URL: "https://example.com/new.xml",
             CONF_MAX_EPISODES: 40,
+            CONF_REFRESH_TIMES: [{"time": "06:15"}, {"time": "21:45"}],
             CONF_UPDATE_INTERVAL: 10,
         },
     )
@@ -209,6 +213,7 @@ async def test_options_flow_updates_feed(hass) -> None:  # noqa: ANN001
     assert updated.data[CONF_ID] == "lage_der_nation"
     assert updated.options[CONF_NAME] == "Lage der Nation Updated"
     assert updated.options[CONF_URL] == "https://example.com/new.xml"
+    assert updated.options[CONF_REFRESH_TIMES] == ["06:15", "21:45"]
 
 
 @pytest.mark.asyncio

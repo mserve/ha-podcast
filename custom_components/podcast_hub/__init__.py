@@ -22,6 +22,7 @@ from .const import (
     CONF_MEDIA_TYPE,
     CONF_NAME,
     CONF_PODCASTS,
+    CONF_REFRESH_TIMES,
     CONF_UPDATE_INTERVAL,
     CONF_URL,
     DEFAULT_MAX_EPISODES,
@@ -34,6 +35,7 @@ from .const import (
 )
 from .coordinator import PodcastHubCoordinator
 from .podcast_hub import PodcastFeed, PodcastHub
+from .time_utils import normalize_refresh_times, parse_refresh_times
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -47,6 +49,9 @@ PODCAST_SCHEMA = vol.Schema(
         vol.Required(CONF_URL): cv.url,
         vol.Optional(CONF_MAX_EPISODES, default=DEFAULT_MAX_EPISODES): vol.All(
             vol.Coerce(int), vol.Clamp(min=1, max=MAX_MAX_EPISODES)
+        ),
+        vol.Optional(CONF_REFRESH_TIMES, default=[]): vol.All(
+            cv.ensure_list, normalize_refresh_times
         ),
         vol.Optional(CONF_UPDATE_INTERVAL): vol.Coerce(int),
     }
@@ -115,6 +120,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             item.get(CONF_MAX_EPISODES, DEFAULT_MAX_EPISODES)
         )
         feed_update_interval = item.get(CONF_UPDATE_INTERVAL, None)
+        refresh_times = parse_refresh_times(item.get(CONF_REFRESH_TIMES))
         feeds.append(
             PodcastFeed(
                 feed_id=feed_id,
@@ -122,6 +128,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 url=url,
                 max_episodes=max_episodes,
                 update_interval=feed_update_interval,
+                refresh_times=refresh_times,
             )
         )
 
@@ -172,6 +179,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             source.get(CONF_MAX_EPISODES, DEFAULT_MAX_EPISODES)
         ),
         update_interval=source.get(CONF_UPDATE_INTERVAL),
+        refresh_times=parse_refresh_times(source.get(CONF_REFRESH_TIMES)),
     )
     hub.feeds[feed.feed_id] = feed
     await coordinator.async_request_refresh()

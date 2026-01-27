@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from datetime import datetime
+    from datetime import datetime, time
 
 
 @dataclass(slots=True)
@@ -46,6 +46,7 @@ class PodcastFeed:
     episodes: list[Episode] = field(default_factory=list)
     last_error: str | None = None
     update_interval: int | None = None
+    refresh_times: list[time] = field(default_factory=list)
     last_update: datetime | None = None
 
 

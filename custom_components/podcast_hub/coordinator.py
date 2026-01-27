@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import calendar
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from typing import TYPE_CHECKING
 
 import async_timeout
@@ -12,6 +12,7 @@ import feedparser
 from feedparser import FeedParserDict
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.util import dt as dt_util
 
 from .const import EVENT_NEW_EPISODE, LOGGER, REQUEST_TIMEOUT
 from .podcast_hub import Episode, PodcastFeed, PodcastHub
@@ -79,18 +80,36 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         self._known_guids: dict[str, set[str]] = {}
 
     async def _async_update_data(self) -> PodcastHub:
+        LOGGER.debug("Starting podcast feed refresh for %d feeds", len(self.hub.feeds))
         tasks = [self._async_update_feed(feed) for feed in self.hub.feeds.values()]
         await asyncio.gather(*tasks)
+        LOGGER.debug("Finished podcast feed refresh")
         return self.hub
 
     async def _async_update_feed(self, feed: PodcastFeed) -> None:
-        now = datetime.now(UTC)
-        if feed.update_interval and feed.last_update:
+        now_utc = dt_util.utcnow()
+        now_local = dt_util.as_local(now_utc)
+        if feed.refresh_times:
+            if not self._is_scheduled_refresh_due(feed, now_local):
+                return
+        elif feed.update_interval and feed.last_update:
             min_interval = timedelta(minutes=feed.update_interval)
-            if now - feed.last_update < min_interval:
+            if now_utc - feed.last_update < min_interval:
                 return
         try:
+            LOGGER.debug(
+                "Fetching feed for %s (%s) from %s",
+                feed.name,
+                feed.feed_id,
+                feed.url,
+            )
             data = await self._async_fetch(feed.url)
+            LOGGER.debug(
+                "Finished fetching feed for %s (%s) (%d bytes)",
+                feed.name,
+                feed.feed_id,
+                len(data),
+            )
             parsed = await self.hass.async_add_executor_job(feedparser.parse, data)
             feed.title = parsed.feed.title or feed.name  # pyright: ignore[reportAttributeAccessIssue]
             feed.image_url = self._feed_image_url(parsed)
@@ -105,7 +124,7 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
                 "Failed to update feed %s (%s): %s", feed.name, feed.feed_id, err
             )
         finally:
-            feed.last_update = now
+            feed.last_update = now_utc
 
     async def _async_fetch(self, url: str) -> bytes:
         session = async_get_clientsession(self.hass)
@@ -225,6 +244,12 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         for episode in feed.episodes:
             if episode.guid not in new_guids:
                 continue
+            LOGGER.debug(
+                "Firing new episode event for %s (%s): %s",
+                feed.name,
+                feed.feed_id,
+                episode.guid,
+            )
             self.hass.bus.async_fire(
                 EVENT_NEW_EPISODE,
                 {
@@ -233,3 +258,28 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
                     "episode": episode.as_dict(),
                 },
             )
+
+    def _is_scheduled_refresh_due(self, feed: PodcastFeed, now_local: datetime) -> bool:
+        if not feed.last_update:
+            return True
+        last_local = dt_util.as_local(feed.last_update)
+        next_refresh = self._next_scheduled_time(last_local, feed.refresh_times)
+        return now_local >= next_refresh
+
+    def _next_scheduled_time(
+        self, last_local: datetime, refresh_times: list[time]
+    ) -> datetime:
+        for refresh_time in refresh_times:
+            candidate = datetime.combine(
+                last_local.date(),
+                refresh_time,
+                tzinfo=last_local.tzinfo,
+            )
+            if candidate > last_local:
+                return candidate
+        next_day = last_local.date() + timedelta(days=1)
+        return datetime.combine(
+            next_day,
+            refresh_times[0],
+            tzinfo=last_local.tzinfo,
+        )

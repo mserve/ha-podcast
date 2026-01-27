@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, time
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
@@ -187,6 +188,82 @@ async def test_per_feed_update_interval_skips_refresh(hass: HomeAssistant) -> No
 
 
 @pytest.mark.asyncio
+async def test_refresh_schedule_updates_only_when_due(
+    hass: HomeAssistant,
+) -> None:
+    """Update feed only when the next scheduled time is reached."""
+    config = {
+        DOMAIN: {
+            "update_interval": 1,
+            "podcasts": [
+                {
+                    "id": "lage_der_nation",
+                    "name": "Lage der Nation",
+                    "url": "https://example.com/feed.xml",
+                    "max_episodes": 50,
+                    "refresh_times": ["09:00"],
+                }
+            ],
+        }
+    }
+
+    async_fetch = AsyncMock(return_value=FEED_XML.encode())
+
+    first_time = datetime(2024, 1, 1, 8, 0, tzinfo=UTC)
+    second_time = datetime(2024, 1, 1, 8, 30, tzinfo=UTC)
+    third_time = datetime(2024, 1, 1, 9, 5, tzinfo=UTC)
+
+    # Initial and first scheduled refresh only
+    count_expected_requests = 2
+
+    with patch(
+        "custom_components.podcast_hub.coordinator.PodcastHubCoordinator._async_fetch",
+        new=async_fetch,
+    ):
+        with (
+            patch(
+                "custom_components.podcast_hub.coordinator.dt_util.utcnow",
+                return_value=first_time,
+            ),
+            patch(
+                "custom_components.podcast_hub.coordinator.dt_util.as_local",
+                side_effect=lambda value: value,
+            ),
+        ):
+            assert await async_setup_component(hass, DOMAIN, config)
+            await hass.async_block_till_done()
+
+        coordinator = hass.data[DOMAIN]["coordinator"]
+        with (
+            patch(
+                "custom_components.podcast_hub.coordinator.dt_util.utcnow",
+                return_value=second_time,
+            ),
+            patch(
+                "custom_components.podcast_hub.coordinator.dt_util.as_local",
+                side_effect=lambda value: value,
+            ),
+        ):
+            await coordinator.async_refresh()
+            await hass.async_block_till_done()
+
+        with (
+            patch(
+                "custom_components.podcast_hub.coordinator.dt_util.utcnow",
+                return_value=third_time,
+            ),
+            patch(
+                "custom_components.podcast_hub.coordinator.dt_util.as_local",
+                side_effect=lambda value: value,
+            ),
+        ):
+            await coordinator.async_refresh()
+            await hass.async_block_till_done()
+
+    assert async_fetch.call_count == count_expected_requests
+
+
+@pytest.mark.asyncio
 async def test_yaml_media_type_setting(hass: HomeAssistant) -> None:
     """Store media type from YAML configuration."""
     config = {
@@ -215,3 +292,37 @@ async def test_yaml_media_type_setting(hass: HomeAssistant) -> None:
         await hass.async_block_till_done()
 
     assert hass.data[DOMAIN]["media_type"] == "podcast"
+
+
+@pytest.mark.asyncio
+async def test_yaml_refresh_times_parsed_and_sorted(hass: HomeAssistant) -> None:
+    """Parse and sort refresh_times from YAML configuration."""
+    config = {
+        DOMAIN: {
+            "update_interval": 15,
+            "podcasts": [
+                {
+                    "id": "lage_der_nation",
+                    "name": "Lage der Nation",
+                    "url": "https://example.com/feed.xml",
+                    "max_episodes": 50,
+                    "refresh_times": ["18:00", "9:05"],
+                }
+            ],
+        }
+    }
+
+    async def fake_fetch(self, url) -> bytes:  # noqa: ANN001, ARG001
+        return FEED_XML.encode()
+
+    with patch(
+        "custom_components.podcast_hub.coordinator.PodcastHubCoordinator._async_fetch",
+        new=fake_fetch,
+    ):
+        assert await async_setup_component(hass, DOMAIN, config)
+        await hass.async_block_till_done()
+
+    hub = hass.data[DOMAIN]["hub"]
+    feed = hub.get_feed("lage_der_nation")
+    assert feed is not None
+    assert feed.refresh_times == [time(9, 5), time(18, 0)]
