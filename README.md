@@ -80,22 +80,33 @@ what URL and content type were resolved.
 
 - `podcast_hub.reload_sources`: Trigger a refresh of all configured feeds.
 
-## Blueprint
+## Blueprints
 
-This integration ships a blueprint to play the latest episode on a media player:
+This integration ships blueprints for common automations and scripts.
 
 ```
-blueprints/automation/podcast_hub/play_latest_episode.yaml
+blueprints/automation/podcast_hub/refresh_and_play_latest.yaml
+blueprints/automation/podcast_hub/notify_on_new_episode.yaml
+```
+
+Script blueprint (takes a feed sensor and media player):
+
+```
+blueprints/script/podcast_hub/play_latest_episode.yaml
 ```
 
 Note: HACS does not install blueprints automatically. Import the blueprint in
-Home Assistant or copy it into your `config/blueprints/automation/` folder.
+Home Assistant or copy it into your `config/blueprints/automation/` or
+`config/blueprints/script/` folder.
 
 ## Entity overview
 
 - One sensor per feed: `sensor.podcast_<feed_id>`
   - State: number of episodes
-  - Attributes: feed metadata and episode list (limited by `max_episodes`)
+  - Attributes: feed metadata, `feed_id`, and episode list (limited by `max_episodes`)
+
+Tip: The included blueprints use the `feed_id` attribute so renamed entities
+keep working without string parsing.
 
 ## UI example: Button to play latest episode
 
@@ -119,4 +130,43 @@ tap_action:
         media-source://podcast_hub/lage_der_nation/none
       {% endif %}
     media_content_type: podcast
+```
+
+Note: You can use the immutable alias `media-source://podcast_hub/<feed_id>/latest`
+to always play the newest episode without looking up GUIDs. This works well in
+scripts and automations.
+
+## Media source alias for latest episode
+
+You can use the immutable `latest` media source alias to always play the newest
+episode. This is especially useful for scripts and automations because the URL
+does not change between episodes.
+
+Example Lovelace button using the alias:
+
+```yaml
+type: button
+name: Play latest episode
+icon: mdi:podcast
+tap_action:
+  action: call-service
+  service: media_player.play_media
+  target:
+    entity_id: media_player.living_room
+  data:
+    media_content_id: media-source://podcast_hub/lage_der_nation/latest
+    media_content_type: podcast
+```
+
+## UI example: Button to refresh feeds
+
+Example Lovelace button that triggers a refresh of all configured feeds:
+
+```yaml
+type: button
+name: Refresh podcasts
+icon: mdi:refresh
+tap_action:
+  action: call-service
+  service: podcast_hub.reload_sources
 ```

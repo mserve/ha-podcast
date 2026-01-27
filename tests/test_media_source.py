@@ -113,3 +113,26 @@ async def test_media_source_resolve_media(hass) -> None:  # noqa: ANN001
 
     assert play.url == "https://cdn.example.com/audio1.mp3"
     assert play.mime_type == "audio/mpeg"
+
+
+@pytest.mark.asyncio
+async def test_media_source_resolve_latest(hass) -> None:  # noqa: ANN001
+    """Resolve the latest alias to the newest episode."""
+    _setup_hub(hass)
+    media_source = await async_get_media_source(hass)
+
+    session = _DummySession(
+        url="https://cdn.example.com/audio1.mp3",
+        content_type="audio/mpeg",
+    )
+
+    with patch(
+        "custom_components.podcast_hub.media_source.async_get_clientsession",
+        return_value=session,
+    ):
+        play = await media_source.async_resolve_media(
+            MediaSourceItem(hass, DOMAIN, "example/latest", None)
+        )
+
+    assert play.url == "https://cdn.example.com/audio1.mp3"
+    assert play.mime_type == "audio/mpeg"

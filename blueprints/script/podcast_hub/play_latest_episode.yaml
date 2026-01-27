@@ -1,0 +1,39 @@
+blueprint:
+  name: Podcast Hub - Play Latest Episode on Media Player
+  description: Play the latest episode of a Podcast Hub feed on a media player.
+  domain: script
+  input:
+    feed_sensor:
+      name: Podcast feed sensor
+      description: The Podcast Hub sensor for the feed to play.
+      selector:
+        entity:
+          domain: sensor
+          integration: podcast_hub
+    media_player:
+      name: Media player
+      description: The media player to play the latest episode.
+      selector:
+        entity:
+          domain: media_player
+
+mode: single
+
+variables:
+  feed_sensor: !input feed_sensor
+  feed_id: >-
+    {% set attr_id = state_attr(feed_sensor, 'feed_id') %}
+    {% if attr_id %}
+      {{ attr_id }}
+    {% else %}
+      {{ feed_sensor.split('sensor.podcast_')[-1] }}
+    {% endif %}
+
+sequence:
+  - service: media_player.play_media
+    target:
+      entity_id: !input media_player
+    data:
+      media_content_id: >-
+        media-source://podcast_hub/{{ feed_id }}/latest
+      media_content_type: podcast

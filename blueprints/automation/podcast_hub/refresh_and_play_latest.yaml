@@ -1,0 +1,53 @@
+blueprint:
+  name: Podcast Hub - Refresh and Play Latest Episode
+  description: Refresh all feeds, then play the latest episode on a media player.
+  domain: automation
+  input:
+    feed_sensor:
+      name: Podcast feed sensor
+      description: The Podcast Hub sensor for the feed to play.
+      selector:
+        entity:
+          domain: sensor
+          integration: podcast_hub
+    media_player:
+      name: Media player
+      description: The media player to play the latest episode.
+      selector:
+        entity:
+          domain: media_player
+    refresh_delay:
+      name: Refresh delay (seconds)
+      description: Time to wait after refresh before playback.
+      default: 2
+      selector:
+        number:
+          min: 0
+          max: 60
+          step: 1
+          mode: slider
+          unit_of_measurement: seconds
+
+mode: single
+
+variables:
+  feed_sensor: !input feed_sensor
+  feed_id: >-
+    {% set attr_id = state_attr(feed_sensor, 'feed_id') %}
+    {% if attr_id %}
+      {{ attr_id }}
+    {% else %}
+      {{ feed_sensor.split('sensor.podcast_')[-1] }}
+    {% endif %}
+
+action:
+  - service: podcast_hub.reload_sources
+  - delay:
+      seconds: !input refresh_delay
+  - service: media_player.play_media
+    target:
+      entity_id: !input media_player
+    data:
+      media_content_id: >-
+        media-source://podcast_hub/{{ feed_id }}/latest
+      media_content_type: podcast

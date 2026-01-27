@@ -119,7 +119,10 @@ class PodcastHubMediaSource(MediaSource):
         if not feed:
             msg = "Podcast feed not found"
             raise MediaSourceError(msg)
-        episode = _find_episode(feed, parsed.item_id)
+        if parsed.item_id == LATEST_KEY:
+            episode = feed.episodes[0] if feed.episodes else None
+        else:
+            episode = _find_episode(feed, parsed.item_id)
         if not episode:
             msg = "Podcast episode not found"
             raise MediaSourceError(msg)
@@ -220,9 +223,13 @@ class PodcastHubMediaSource(MediaSource):
             episodes = episodes[:1]
 
         media_type = self._episode_media_type()
-        children = [
-            _episode_to_browse_item(feed, episode, media_type) for episode in episodes
-        ]
+        if mode == LATEST_KEY and episodes:
+            children = [_latest_to_browse_item(feed, episodes[0], media_type)]
+        else:
+            children = [
+                _episode_to_browse_item(feed, episode, media_type)
+                for episode in episodes
+            ]
         title = "Latest" if mode == LATEST_KEY else "All Episodes"
         return BrowseMediaSource(
             domain=DOMAIN,
@@ -263,6 +270,21 @@ def _episode_to_browse_item(
     )
 
 
+def _latest_to_browse_item(
+    feed: PodcastFeed, episode: Episode, media_type: str
+) -> BrowseMediaSource:
+    return BrowseMediaSource(
+        domain=DOMAIN,
+        identifier=_join_identifier(feed.feed_id, LATEST_KEY),
+        media_class=MediaClass.PODCAST,
+        media_content_type=media_type,
+        title=episode.title,
+        can_play=True,
+        can_expand=False,
+        thumbnail=episode.image_url or feed.image_url,
+    )
+
+
 def _normalize_identifier(identifier: str | None) -> str:
     """Return a normalized identifier path for media source handling."""
     return identifier or ""
@@ -279,8 +301,6 @@ def _parse_episode_id(identifier: str) -> ParsedContentId:
         return ParsedContentId(None, None)
     feed_id = unquote(feed_id)
     item_id = unquote(item_id)
-    if item_id in (LATEST_KEY, ALL_KEY):
-        return ParsedContentId(None, None)
     return ParsedContentId(feed_id, item_id)
 
 

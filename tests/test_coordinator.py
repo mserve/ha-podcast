@@ -94,6 +94,7 @@ async def test_coordinator_updates_and_sensor_attributes(hass: HomeAssistant) ->
     attrs = state.attributes
     assert attrs["title"] == "Lage der Nation"
     assert attrs["feed_url"] == "https://example.com/feed.xml"
+    assert attrs["feed_id"] == "lage_der_nation"
     assert attrs["latest_episode_title"] == "Episode 1"
     assert attrs["latest_episode_guid"] == "episode-1"
     assert attrs["latest_episode_url"] == "https://example.com/audio1.mp3"
