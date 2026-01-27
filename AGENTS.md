@@ -154,12 +154,17 @@ Service handlers:
 
 ## Configuration Rules
 
-- Configuration is **YAML-only**
+- Configuration is both **YAML** and **Config Flow**
 - Parsing happens in `async_setup`
 - Invalid feeds must not crash setup
 - Missing optional fields must have safe defaults
 
 ---
+
+## Translation rules
+- Use hassfest compliant translations
+- Always update German and English translations
+
 
 ## Testing Expectations
 
