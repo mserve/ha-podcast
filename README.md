@@ -65,6 +65,15 @@ podcast_hub:
   - `update_interval` (int, optional): Per-feed override (minutes).
   - `refresh_times` (list, optional): Refresh at specific local times (`HH:MM`).
 
+## Entity overview
+
+- One sensor per feed: `sensor.podcast_<feed_id>`
+  - State: number of episodes
+  - Attributes: feed metadata, `feed_id`, and episode list (limited by `max_episodes`)
+
+Tip: The included blueprints use the `feed_id` attribute so renamed entities
+keep working without string parsing.
+
 ## Media browsing and playback
 
 The Media Source browser lists your feeds and episodes. When you play an episode,
@@ -75,6 +84,28 @@ Important: Make sure your feed entries actually contain audio enclosures.
 If a feed points to non-audio content (or no enclosure at all), playback may fail
 with a wrong media type error. Check the Home Assistant log for details about
 what URL and content type were resolved.
+
+## Media source alias for latest episode
+
+You can use the immutable `latest` media source alias to always play the newest
+episode. This is especially useful for scripts and automations because the URL
+does not change between episodes.
+
+Example Lovelace button using the alias:
+
+```yaml
+type: button
+name: Play latest episode
+icon: mdi:podcast
+tap_action:
+  action: call-service
+  service: media_player.play_media
+  target:
+    entity_id: media_player.living_room
+  data:
+    media_content_id: media-source://podcast_hub/lage_der_nation/latest
+    media_content_type: podcast
+```
 
 ## Services
 
@@ -99,16 +130,7 @@ Note: HACS does not install blueprints automatically. Import the blueprint in
 Home Assistant or copy it into your `config/blueprints/automation/` or
 `config/blueprints/script/` folder.
 
-## Entity overview
-
-- One sensor per feed: `sensor.podcast_<feed_id>`
-  - State: number of episodes
-  - Attributes: feed metadata, `feed_id`, and episode list (limited by `max_episodes`)
-
-Tip: The included blueprints use the `feed_id` attribute so renamed entities
-keep working without string parsing.
-
-## UI example: Button to play latest episode
+## UI example: Button to play latest episode (GUID)
 
 Example Lovelace button that plays the latest episode of a feed when pressed:
 
@@ -136,28 +158,6 @@ Note: You can use the immutable alias `media-source://podcast_hub/<feed_id>/late
 to always play the newest episode without looking up GUIDs. This works well in
 scripts and automations.
 
-## Media source alias for latest episode
-
-You can use the immutable `latest` media source alias to always play the newest
-episode. This is especially useful for scripts and automations because the URL
-does not change between episodes.
-
-Example Lovelace button using the alias:
-
-```yaml
-type: button
-name: Play latest episode
-icon: mdi:podcast
-tap_action:
-  action: call-service
-  service: media_player.play_media
-  target:
-    entity_id: media_player.living_room
-  data:
-    media_content_id: media-source://podcast_hub/lage_der_nation/latest
-    media_content_type: podcast
-```
-
 ## UI example: Button to refresh feeds
 
 Example Lovelace button that triggers a refresh of all configured feeds:
@@ -169,4 +169,26 @@ icon: mdi:refresh
 tap_action:
   action: call-service
   service: podcast_hub.reload_sources
+```
+
+## Development
+
+- Lint and format:
+
+```
+ruff check .
+ruff format .
+```
+
+- Run tests:
+
+```
+pytest -q
+```
+
+- Optional: install pre-commit hooks:
+
+```
+pip install pre-commit
+pre-commit install
 ```
