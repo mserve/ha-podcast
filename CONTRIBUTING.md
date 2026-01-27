@@ -44,7 +44,12 @@ People *love* thorough bug reports. I'm not even kidding.
 
 ## Use a Consistent Coding Style
 
-Use [black](https://github.com/ambv/black) to make sure the code follows the style.
+This project uses [ruff](https://docs.astral.sh/ruff/) for linting and formatting:
+
+```
+ruff check .
+ruff format .
+```
 
 ## Test your code modification
 
@@ -55,6 +60,21 @@ if you use Visual Studio Code. With this container you will have a stand alone
 Home Assistant instance running and already configured with the included
 [`configuration.yaml`](./config/configuration.yaml)
 file.
+
+## Development workflow
+
+- Install pre-commit and hooks (optional but recommended):
+
+```
+pip install pre-commit
+pre-commit install
+```
+
+- Run tests:
+
+```
+pytest -q
+```
 
 ## License
 

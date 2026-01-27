@@ -12,7 +12,8 @@
         }
     },
     "containerEnv": {
-        "TZ": "Europe/Berlin" // Set your local timezone here
+        "TZ": "Europe/Berlin", // Set your local timezone here
+        "PRE_COMMIT_HOME": "/tmp/pre-commit"
     },
     "customizations": {
         "vscode": {
