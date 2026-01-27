@@ -63,6 +63,15 @@ def _setup_hub(hass) -> PodcastHub:  # noqa: ANN001
     return hub
 
 
+def _setup_hub_with_feeds(hass, feeds: list[PodcastFeed]) -> PodcastHub:  # noqa: ANN001
+    hub = PodcastHub(feeds)
+    hass.data[DOMAIN] = {
+        "hub": hub,
+        "coordinator": PodcastHubCoordinator(hass, hub, 15),
+    }
+    return hub
+
+
 @pytest.mark.asyncio
 async def test_media_source_browse_root(hass) -> None:  # noqa: ANN001
     """Browse root returns feeds directly."""
@@ -76,6 +85,34 @@ async def test_media_source_browse_root(hass) -> None:  # noqa: ANN001
     assert result.title == "Podcast Hub"
     assert result.children
     assert result.children[0].title == "Example Feed"
+
+
+@pytest.mark.asyncio
+async def test_media_source_browse_root_sorted(hass) -> None:  # noqa: ANN001
+    """Browse root returns feeds sorted alphabetically."""
+    feeds = [
+        PodcastFeed(
+            feed_id="beta",
+            name="beta feed",
+            url="https://example.com/b.xml",
+            max_episodes=10,
+        ),
+        PodcastFeed(
+            feed_id="alpha",
+            name="Alpha feed",
+            url="https://example.com/a.xml",
+            max_episodes=10,
+        ),
+    ]
+    _setup_hub_with_feeds(hass, feeds)
+    media_source = await async_get_media_source(hass)
+
+    result = await media_source.async_browse_media(
+        MediaSourceItem(hass, DOMAIN, "", None)
+    )
+
+    titles = [child.title for child in result.children]
+    assert titles == ["Alpha feed", "beta feed"]
 
 
 @pytest.mark.asyncio

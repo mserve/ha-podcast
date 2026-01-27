@@ -148,6 +148,10 @@ class PodcastHubMediaSource(MediaSource):
         return self._browse_podcasts()
 
     def _browse_podcasts(self) -> BrowseMediaSource:
+        feeds = sorted(
+            self.hub.feeds.values(),
+            key=lambda feed: (feed.title or feed.name or "").casefold(),
+        )
         children = [
             BrowseMediaSource(
                 domain=DOMAIN,
@@ -159,7 +163,7 @@ class PodcastHubMediaSource(MediaSource):
                 can_expand=True,
                 thumbnail=feed.image_url,
             )
-            for feed in self.hub.feeds.values()
+            for feed in feeds
         ]
         return BrowseMediaSource(
             domain=DOMAIN,
