@@ -3,12 +3,6 @@ blueprint:
   description: Notify when a specific podcast feed publishes a new episode.
   domain: automation
   input:
-    notify_service:
-      name: Notify service
-      description: The notify service to call.
-      selector:
-        service:
-          domain: notify
     feed_sensor:
       name: Podcast feed sensor
       description: The Podcast Hub sensor to watch for new episodes.
@@ -38,7 +32,7 @@ condition:
     value_template: "{{ trigger.event.data.feed_id == feed_id }}"
 
 action:
-  - service: !input notify_service
+  - service: persistent_notification.create
     data:
       title: >-
         New episode: {{ trigger.event.data.feed_title }}
