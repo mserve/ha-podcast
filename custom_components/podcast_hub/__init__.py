@@ -142,7 +142,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     async def _async_handle_reload(call: ServiceCall) -> None:  # noqa: ARG001
         try:
-            await coordinator.async_request_refresh()
+            LOGGER.debug("Manual reload requested; refreshing podcast feeds now")
+            await coordinator.async_refresh()
         except (TimeoutError, aiohttp.ClientError) as err:
             LOGGER.exception("Failed to reload podcast feeds: %s", err)
 
@@ -182,13 +183,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         refresh_times=parse_refresh_times(source.get(CONF_REFRESH_TIMES)),
     )
     hub.feeds[feed.feed_id] = feed
-    await coordinator.async_request_refresh()
+    LOGGER.debug("New feed added; refreshing podcast feeds now")
+    await coordinator.async_refresh()
 
     if not data.get("service_registered"):
 
         async def _async_handle_reload(call: ServiceCall) -> None:  # noqa: ARG001
             try:
-                await coordinator.async_request_refresh()
+                LOGGER.debug("Manual reload requested; refreshing podcast feeds now")
+                await coordinator.async_refresh()
             except (TimeoutError, aiohttp.ClientError) as err:
                 LOGGER.exception("Failed to reload podcast feeds: %s", err)
 

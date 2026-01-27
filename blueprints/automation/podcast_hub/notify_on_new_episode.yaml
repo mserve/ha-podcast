@@ -7,7 +7,8 @@ blueprint:
       name: Notify service
       description: The notify service to call.
       selector:
-        text:
+        service:
+          domain: notify
     feed_sensor:
       name: Podcast feed sensor
       description: The Podcast Hub sensor to watch for new episodes.

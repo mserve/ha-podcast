@@ -3,6 +3,11 @@ blueprint:
   description: Refresh all feeds, then play the latest episode on a media player.
   domain: automation
   input:
+    time_pattern:
+      name: Time pattern (HH:MM)
+      description: Trigger the automation at this time each day.
+      selector:
+        time:
     feed_sensor:
       name: Podcast feed sensor
       description: The Podcast Hub sensor for the feed to play.
@@ -39,6 +44,10 @@ variables:
     {% else %}
       {{ feed_sensor.split('sensor.podcast_')[-1] }}
     {% endif %}
+
+trigger:
+  - platform: time
+    at: !input time_pattern
 
 action:
   - service: podcast_hub.reload_sources
