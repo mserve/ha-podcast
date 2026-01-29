@@ -76,14 +76,20 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             name="podcast_hub",
             update_interval=timedelta(minutes=update_interval),
         )
+        self.base_update_interval = timedelta(minutes=update_interval)
         self.hub = hub
         self._known_guids: dict[str, set[str]] = {}
 
     async def _async_update_data(self) -> PodcastHub:
-        LOGGER.debug("Starting podcast feed refresh for %d feeds", len(self.hub.feeds))
+        now_utc = dt_util.utcnow()
+        now_local = dt_util.as_local(now_utc)
+        LOGGER.debug(
+            "Starting podcast feed refresh check for %d feeds", len(self.hub.feeds)
+        )
         tasks = [self._async_update_feed(feed) for feed in self.hub.feeds.values()]
         await asyncio.gather(*tasks)
-        LOGGER.debug("Finished podcast feed refresh")
+        self._update_next_refresh(now_utc, now_local)
+        LOGGER.debug("Finished podcast feed refresh check")
         return self.hub
 
     async def _async_update_feed(self, feed: PodcastFeed) -> None:
@@ -92,10 +98,12 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         if feed.refresh_times:
             if not self._is_scheduled_refresh_due(feed, now_local):
                 return
+            LOGGER.debug("Scheduled refresh due for %s (%s)", feed.name, feed.feed_id)
         elif feed.update_interval and feed.last_update:
             min_interval = timedelta(minutes=feed.update_interval)
             if now_utc - feed.last_update < min_interval:
                 return
+            LOGGER.debug("Regular feed update due for %s (%s)", feed.name, feed.feed_id)
         try:
             LOGGER.debug(
                 "Fetching feed for %s (%s) from %s",
@@ -283,3 +291,46 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             refresh_times[0],
             tzinfo=last_local.tzinfo,
         )
+
+    def _update_next_refresh(self, now_utc: datetime, now_local: datetime) -> None:
+        next_due = self._next_due_time(now_utc, now_local)
+        next_due = max(next_due, now_utc)
+        interval = next_due - now_utc
+        interval = max(interval, timedelta(minutes=1))
+        self.update_interval = interval
+        LOGGER.debug("Next coordinator refresh in %s", interval)
+
+    def _next_due_time(self, now_utc: datetime, now_local: datetime) -> datetime:
+        if not self.hub.feeds:
+            return now_utc + self.base_update_interval
+        next_due: datetime | None = None
+        for feed in self.hub.feeds.values():
+            candidate = self._feed_next_due(feed, now_utc, now_local)
+            if next_due is None or candidate < next_due:
+                next_due = candidate
+        return next_due or (now_utc + self.base_update_interval)
+
+    def _feed_next_due(
+        self, feed: PodcastFeed, now_utc: datetime, now_local: datetime
+    ) -> datetime:
+        if feed.refresh_times:
+            if not feed.last_update:
+                return dt_util.as_utc(now_local)
+            last_local = dt_util.as_local(feed.last_update)
+            next_local = self._next_scheduled_time(last_local, feed.refresh_times)
+            next_local = max(next_local, now_local)
+            return dt_util.as_utc(next_local)
+        feed_interval = _safe_interval_minutes(feed.update_interval)
+        if feed_interval is not None:
+            if not feed.last_update:
+                return now_utc
+            return feed.last_update + timedelta(minutes=feed_interval)
+        return now_utc + self.base_update_interval
+
+
+def _safe_interval_minutes(value: int | None) -> int | None:
+    try:
+        minutes = int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+    return minutes if minutes and minutes > 0 else None

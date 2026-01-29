@@ -98,11 +98,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     if not conf:
         return True
 
-    update_interval = conf.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
-    try:
-        update_interval = int(update_interval)
-    except (TypeError, ValueError):
-        update_interval = DEFAULT_UPDATE_INTERVAL
+    update_interval = _coerce_update_interval(
+        conf.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+    )
     media_type = conf.get(CONF_MEDIA_TYPE, "track")
     if media_type not in {"track", "podcast"}:
         media_type = "track"
@@ -135,6 +133,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data.setdefault(DOMAIN, {})
     data = hass.data[DOMAIN]
     data["has_yaml"] = True
+    data["yaml_update_interval"] = update_interval
     data["media_type"] = media_type
     hub, coordinator = _ensure_hub_and_coordinator(hass, update_interval)
     _merge_feeds(hub, feeds)
@@ -144,10 +143,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         try:
             LOGGER.debug("Manual reload requested; refreshing podcast feeds now")
             await coordinator.async_refresh()
+            LOGGER.debug("Manual reload completed")
         except (TimeoutError, aiohttp.ClientError) as err:
             LOGGER.exception("Failed to reload podcast feeds: %s", err)
 
     if not data.get("service_registered"):
+        LOGGER.debug("Registering reload service")
         hass.services.async_register(DOMAIN, SERVICE_RELOAD, _async_handle_reload)
         data["service_registered"] = True
 
@@ -185,6 +186,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hub.feeds[feed.feed_id] = feed
     LOGGER.debug("New feed added; refreshing podcast feeds now")
     await coordinator.async_refresh()
+    LOGGER.debug("Feed addition refresh completed")
 
     if not data.get("service_registered"):
 
@@ -192,9 +194,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             try:
                 LOGGER.debug("Manual reload requested; refreshing podcast feeds now")
                 await coordinator.async_refresh()
+                LOGGER.debug("Manual reload completed")
             except (TimeoutError, aiohttp.ClientError) as err:
                 LOGGER.exception("Failed to reload podcast feeds: %s", err)
 
+        LOGGER.debug("Registering reload service")
         hass.services.async_register(DOMAIN, SERVICE_RELOAD, _async_handle_reload)
         data["service_registered"] = True
 
@@ -211,7 +215,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if entry.unique_id == "settings":
         data.pop("settings_entry", None)
-        _update_coordinator_interval(hass, DEFAULT_UPDATE_INTERVAL)
+        _update_coordinator_interval(hass, _get_global_update_interval(hass))
         return True
 
     hub: PodcastHub | None = data.get("hub")
@@ -256,6 +260,9 @@ def _get_global_update_interval(hass: HomeAssistant) -> int:
     if settings:
         source = settings.options or settings.data
         return source.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+    yaml_interval = data.get("yaml_update_interval")
+    if yaml_interval:
+        return yaml_interval
     return DEFAULT_UPDATE_INTERVAL
 
 
@@ -264,8 +271,10 @@ def _update_coordinator_interval(hass: HomeAssistant, interval: int | None) -> N
     coordinator: PodcastHubCoordinator | None = data.get("coordinator")
     if not coordinator:
         return
-    minutes = interval or DEFAULT_UPDATE_INTERVAL
-    coordinator.update_interval = timedelta(minutes=minutes)
+    minutes = _coerce_update_interval(interval)
+    base_interval = timedelta(minutes=minutes)
+    coordinator.base_update_interval = base_interval
+    coordinator.update_interval = base_interval
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -286,3 +295,16 @@ def _coerce_max_episodes(value: int | None) -> int:
     except (TypeError, ValueError):
         coerced = DEFAULT_MAX_EPISODES
     return max(1, min(coerced, MAX_MAX_EPISODES))
+
+
+def _coerce_update_interval(value: int | None) -> int:
+    minutes = _safe_interval(value)
+    return minutes if minutes is not None else DEFAULT_UPDATE_INTERVAL
+
+
+def _safe_interval(value: int | None) -> int | None:
+    try:
+        minutes = int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+    return minutes if minutes and minutes > 0 else None
