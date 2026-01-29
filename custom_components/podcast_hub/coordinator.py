@@ -79,6 +79,7 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         self.base_update_interval = timedelta(minutes=update_interval)
         self.hub = hub
         self._known_guids: dict[str, set[str]] = {}
+        self._force_refresh = False
 
     async def _async_update_data(self) -> PodcastHub:
         now_utc = dt_util.utcnow()
@@ -95,7 +96,9 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
     async def _async_update_feed(self, feed: PodcastFeed) -> None:
         now_utc = dt_util.utcnow()
         now_local = dt_util.as_local(now_utc)
-        if feed.refresh_times:
+        if self._force_refresh:
+            LOGGER.debug("Force refresh for %s (%s)", feed.name, feed.feed_id)
+        elif feed.refresh_times:
             if not self._is_scheduled_refresh_due(feed, now_local):
                 return
             LOGGER.debug("Scheduled refresh due for %s (%s)", feed.name, feed.feed_id)
@@ -133,6 +136,14 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             )
         finally:
             feed.last_update = now_utc
+
+    async def async_force_refresh(self) -> None:
+        """Force a refresh of all feeds regardless of schedule."""
+        self._force_refresh = True
+        try:
+            await self.async_refresh()
+        finally:
+            self._force_refresh = False
 
     async def _async_fetch(self, url: str) -> bytes:
         session = async_get_clientsession(self.hass)

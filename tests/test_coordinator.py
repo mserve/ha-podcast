@@ -189,6 +189,39 @@ async def test_per_feed_update_interval_skips_refresh(hass: HomeAssistant) -> No
 
 
 @pytest.mark.asyncio
+async def test_service_reload_forces_refresh(hass: HomeAssistant) -> None:
+    """Service reload forces refresh regardless of schedule."""
+    config = {
+        DOMAIN: {
+            "update_interval": 1,
+            "podcasts": [
+                {
+                    "id": "lage_der_nation",
+                    "name": "Lage der Nation",
+                    "url": "https://example.com/feed.xml",
+                    "update_interval": 60,
+                }
+            ],
+        }
+    }
+
+    async_fetch = AsyncMock(return_value=FEED_XML.encode())
+
+    with patch(
+        "custom_components.podcast_hub.coordinator.PodcastHubCoordinator._async_fetch",
+        new=async_fetch,
+    ):
+        assert await async_setup_component(hass, DOMAIN, config)
+        await hass.async_block_till_done()
+
+        await hass.services.async_call(DOMAIN, "reload_sources", blocking=True)
+        await hass.async_block_till_done()
+
+    expected_calls = 2  # Initial fetch + reload fetch
+    assert async_fetch.call_count == expected_calls
+
+
+@pytest.mark.asyncio
 async def test_refresh_schedule_updates_only_when_due(
     hass: HomeAssistant,
 ) -> None:

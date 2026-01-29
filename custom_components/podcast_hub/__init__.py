@@ -142,7 +142,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def _async_handle_reload(call: ServiceCall) -> None:  # noqa: ARG001
         try:
             LOGGER.debug("Manual reload requested; refreshing podcast feeds now")
-            await coordinator.async_refresh()
+            await coordinator.async_force_refresh()
             LOGGER.debug("Manual reload completed")
         except (TimeoutError, aiohttp.ClientError) as err:
             LOGGER.exception("Failed to reload podcast feeds: %s", err)
@@ -193,7 +193,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async def _async_handle_reload(call: ServiceCall) -> None:  # noqa: ARG001
             try:
                 LOGGER.debug("Manual reload requested; refreshing podcast feeds now")
-                await coordinator.async_refresh()
+                await coordinator.async_force_refresh()
                 LOGGER.debug("Manual reload completed")
             except (TimeoutError, aiohttp.ClientError) as err:
                 LOGGER.exception("Failed to reload podcast feeds: %s", err)
