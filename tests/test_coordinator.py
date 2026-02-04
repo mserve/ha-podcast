@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.setup import async_setup_component
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.podcast_hub.const import DOMAIN, EVENT_NEW_EPISODE
 
@@ -152,6 +153,38 @@ async def test_new_episode_event_fires(hass: HomeAssistant) -> None:
     assert len(events) == 1
     assert events[0]["feed_id"] == "lage_der_nation"
     assert events[0]["episode"]["guid"] == "episode-2"
+
+
+@pytest.mark.asyncio
+async def test_config_entry_setup_without_yaml(
+    hass: HomeAssistant,
+) -> None:
+    """Set up a config entry without YAML defaults present."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "id": "lage_der_nation",
+            "name": "Lage der Nation",
+            "url": "https://example.com/feed.xml",
+            "max_episodes": 50,
+        },
+        title="Lage der Nation",
+    )
+    entry.add_to_hass(hass)
+
+    async def fake_fetch(self, url) -> bytes:  # noqa: ANN001, ARG001
+        return FEED_XML.encode()
+
+    with patch(
+        "custom_components.podcast_hub.coordinator.PodcastHubCoordinator._async_fetch",
+        new=fake_fetch,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.podcast_lage_der_nation")
+    assert state is not None
+    assert state.state == "1"
 
 
 @pytest.mark.asyncio

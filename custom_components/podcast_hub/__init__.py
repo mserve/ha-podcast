@@ -173,10 +173,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.async_on_unload(entry.add_update_listener(_async_update_listener))
         return True
 
-    if data["has_yaml"] and data["yaml_update_check_interval"] is not None:
-        update_check_interval = data["yaml_update_check_interval"]
-    else:
-        update_check_interval = DEFAULT_UPDATE_CHECK_INTERVAL
+    update_check_interval = data.get(
+        "yaml_update_check_interval", DEFAULT_UPDATE_CHECK_INTERVAL
+    )
+
     hub, coordinator = _ensure_hub_and_coordinator(hass, update_check_interval)
 
     source = entry.options or entry.data
