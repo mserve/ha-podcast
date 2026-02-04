@@ -11,6 +11,7 @@ LOGGER: Logger = getLogger(__package__)
 DOMAIN = "podcast_hub"
 
 CONF_PODCASTS = "podcasts"
+CONF_UPDATE_CHECK_INTERVAL = "update_check_interval"
 CONF_UPDATE_INTERVAL = "update_interval"
 CONF_REFRESH_TIMES = "refresh_times"
 CONF_MAX_EPISODES = "max_episodes"
@@ -18,6 +19,8 @@ CONF_ID = "id"
 CONF_NAME = "name"
 CONF_URL = "url"
 
+
+DEFAULT_UPDATE_CHECK_INTERVAL = 1
 DEFAULT_UPDATE_INTERVAL = 15
 DEFAULT_MAX_EPISODES = 50
 MAX_MAX_EPISODES = 500

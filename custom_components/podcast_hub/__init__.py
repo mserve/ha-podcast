@@ -7,7 +7,6 @@ https://github.com/mserve/ha-podcast
 
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import aiohttp
@@ -23,9 +22,11 @@ from .const import (
     CONF_NAME,
     CONF_PODCASTS,
     CONF_REFRESH_TIMES,
+    CONF_UPDATE_CHECK_INTERVAL,
     CONF_UPDATE_INTERVAL,
     CONF_URL,
     DEFAULT_MAX_EPISODES,
+    DEFAULT_UPDATE_CHECK_INTERVAL,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
     LOGGER,
@@ -134,8 +135,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     data = hass.data[DOMAIN]
     data["has_yaml"] = True
     data["yaml_update_interval"] = update_interval
+    data["yaml_update_check_interval"] = conf.get(
+        CONF_UPDATE_CHECK_INTERVAL, DEFAULT_UPDATE_CHECK_INTERVAL
+    )
     data["media_type"] = media_type
-    hub, coordinator = _ensure_hub_and_coordinator(hass, update_interval)
+    hub, coordinator = _ensure_hub_and_coordinator(
+        hass, conf.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+    )
     _merge_feeds(hub, feeds)
     await coordinator.async_refresh()
 
@@ -164,15 +170,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data = hass.data[DOMAIN]
     if entry.unique_id == "settings":
         hass.data[DOMAIN]["settings_entry"] = entry
-        settings = entry.options or entry.data
-        _update_coordinator_interval(hass, settings.get(CONF_UPDATE_INTERVAL))
         entry.async_on_unload(entry.add_update_listener(_async_update_listener))
         return True
 
-    global_interval = _get_global_update_interval(hass)
-    hub, coordinator = _ensure_hub_and_coordinator(hass, global_interval)
+    if data["has_yaml"] and data["yaml_update_check_interval"] is not None:
+        update_check_interval = data["yaml_update_check_interval"]
+    else:
+        update_check_interval = DEFAULT_UPDATE_CHECK_INTERVAL
+    hub, coordinator = _ensure_hub_and_coordinator(hass, update_check_interval)
 
     source = entry.options or entry.data
+    # Add new feed to hub
     feed = PodcastFeed(
         feed_id=entry.data[CONF_ID],
         name=source.get(CONF_NAME, entry.data[CONF_NAME]),
@@ -213,9 +221,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not data:
         return True
 
+    # Remove settings entry
     if entry.unique_id == "settings":
         data.pop("settings_entry", None)
-        _update_coordinator_interval(hass, _get_global_update_interval(hass))
         return True
 
     hub: PodcastHub | None = data.get("hub")
@@ -228,6 +236,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not unload_ok:
         return False
 
+    # Clean up hub and coordinator if no feeds remain and no YAML config
     if not data.get("has_yaml") and hub and not hub.feeds:
         data.pop("hub", None)
         data.pop("coordinator", None)
@@ -266,27 +275,14 @@ def _get_global_update_interval(hass: HomeAssistant) -> int:
     return DEFAULT_UPDATE_INTERVAL
 
 
-def _update_coordinator_interval(hass: HomeAssistant, interval: int | None) -> None:
-    data = hass.data.get(DOMAIN, {})
-    coordinator: PodcastHubCoordinator | None = data.get("coordinator")
-    if not coordinator:
-        return
-    minutes = _coerce_update_interval(interval)
-    base_interval = timedelta(minutes=minutes)
-    coordinator.base_update_interval = base_interval
-    coordinator.update_interval = base_interval
-
-
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     if entry.unique_id == "settings":
-        settings = entry.options or entry.data
-        _update_coordinator_interval(hass, settings.get(CONF_UPDATE_INTERVAL))
-    else:
-        source = entry.options or entry.data
-        new_title = source.get(CONF_NAME)
-        if new_title and entry.title != new_title:
-            hass.config_entries.async_update_entry(entry, title=new_title)
-    await hass.config_entries.async_reload(entry.entry_id)
+        return
+    source = entry.options or entry.data
+    new_title = source.get(CONF_NAME)
+    if new_title and entry.title != new_title:
+        hass.config_entries.async_update_entry(entry, title=new_title)
+    hass.config_entries.async_schedule_reload(entry.entry_id)
 
 
 def _coerce_max_episodes(value: int | None) -> int:

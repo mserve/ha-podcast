@@ -40,6 +40,7 @@ Add the integration to your `configuration.yaml` if you prefer YAML:
 
 ```yaml
 podcast_hub:
+  update_check_interval: 5  # minutes, optional (YAML only)
   update_interval: 15  # minutes, optional
   media_type: track    # optional: track (Sonos compatible) or podcast
   podcasts:
@@ -54,6 +55,10 @@ podcast_hub:
 
 ### Options
 
+- `update_check_interval` (int, minutes, optional): How often the integration checks
+  if any feed has a due update or refresh. Defaults to `5` minutes and can only be configured via YAML.
+  You may safely decrease this value if there are only few feed configured, the feed URL will only be
+  fetched if an update or refresh is due. This only triggers the internal checks in the coordinator.
 - `update_interval` (int, minutes, optional): How often to refresh all feeds.
 - `media_type` (str, optional): `track` (audio/*, Sonos friendly) or `podcast`.
 - `podcasts` (list, required): Podcast feed definitions.

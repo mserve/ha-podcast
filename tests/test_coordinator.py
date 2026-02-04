@@ -146,7 +146,7 @@ async def test_new_episode_event_fires(hass: HomeAssistant) -> None:
         "custom_components.podcast_hub.coordinator.PodcastHubCoordinator._async_fetch",
         new=fake_fetch_second,
     ):
-        await coordinator.async_request_refresh()
+        await coordinator.async_force_refresh()
         await hass.async_block_till_done()
 
     assert len(events) == 1
@@ -338,45 +338,6 @@ async def test_next_refresh_interval_from_refresh_times(
 
     coordinator = hass.data[DOMAIN]["coordinator"]
     assert coordinator.update_interval == timedelta(hours=1)
-
-
-@pytest.mark.asyncio
-async def test_next_refresh_interval_from_feed_interval(
-    hass: HomeAssistant,
-) -> None:
-    """Compute the coordinator interval from per-feed update interval."""
-    config = {
-        DOMAIN: {
-            "update_interval": 90,
-            "podcasts": [
-                {
-                    "id": "lage_der_nation",
-                    "name": "Lage der Nation",
-                    "url": "https://example.com/feed.xml",
-                    "update_interval": 30,
-                }
-            ],
-        }
-    }
-
-    async_fetch = AsyncMock(return_value=FEED_XML.encode())
-    now_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
-
-    with (
-        patch(
-            "custom_components.podcast_hub.coordinator.PodcastHubCoordinator._async_fetch",
-            new=async_fetch,
-        ),
-        patch(
-            "custom_components.podcast_hub.coordinator.dt_util.utcnow",
-            return_value=now_time,
-        ),
-    ):
-        assert await async_setup_component(hass, DOMAIN, config)
-        await hass.async_block_till_done()
-
-    coordinator = hass.data[DOMAIN]["coordinator"]
-    assert coordinator.update_interval == timedelta(minutes=30)
 
 
 @pytest.mark.asyncio
