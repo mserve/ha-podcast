@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Self
+from typing import TYPE_CHECKING, Self
 from unittest.mock import patch
 
 import pytest
 from homeassistant.components.media_source import MediaSourceItem
 
-from custom_components.podcast_hub.const import DOMAIN
+from custom_components.podcast_hub.const import CONF_MEDIA_TYPE, DOMAIN
 from custom_components.podcast_hub.coordinator import PodcastHubCoordinator
 from custom_components.podcast_hub.media_source import async_get_media_source
 from custom_components.podcast_hub.podcast_hub import Episode, PodcastFeed, PodcastHub
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 pytestmark = pytest.mark.usefixtures("enable_custom_integrations")
 
@@ -55,7 +58,7 @@ def _setup_hub(hass) -> PodcastHub:  # noqa: ANN001
         max_episodes=50,
         episodes=[episode],
     )
-    hub = PodcastHub([feed])
+    hub = PodcastHub(hass, [feed])
     hass.data[DOMAIN] = {
         "hub": hub,
         "coordinator": PodcastHubCoordinator(hass, hub, 15),
@@ -64,7 +67,7 @@ def _setup_hub(hass) -> PodcastHub:  # noqa: ANN001
 
 
 def _setup_hub_with_feeds(hass, feeds: list[PodcastFeed]) -> PodcastHub:  # noqa: ANN001
-    hub = PodcastHub(feeds)
+    hub = PodcastHub(hass, feeds)
     hass.data[DOMAIN] = {
         "hub": hub,
         "coordinator": PodcastHubCoordinator(hass, hub, 15),
@@ -173,3 +176,46 @@ async def test_media_source_resolve_latest(hass) -> None:  # noqa: ANN001
 
     assert play.url == "https://cdn.example.com/audio1.mp3"
     assert play.mime_type == "audio/mpeg"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("configured", "expected"),
+    [
+        ("podcast", "podcast"),
+        ("track", "audio/mpeg"),
+    ],
+)
+async def test_media_source_uses_configured_media_type(
+    hass: HomeAssistant, configured: str, expected: str
+) -> None:
+    """Use configured media type when set on the config entry."""
+    _setup_hub(hass)
+    hass.data[DOMAIN]["config_entry"] = type(
+        "_Entry",
+        (),
+        {"options": {CONF_MEDIA_TYPE: configured}, "data": {}},
+    )()
+    media_source = await async_get_media_source(hass)
+
+    result = await media_source.async_browse_media(
+        MediaSourceItem(hass, DOMAIN, "example/all", None)
+    )
+
+    assert result.children
+    assert result.children[0].media_content_type == expected
+
+
+@pytest.mark.asyncio
+async def test_media_source_falls_back_to_yaml_media_type(hass: HomeAssistant) -> None:
+    """Fallback to YAML media type when no config entry is present."""
+    _setup_hub(hass)
+    hass.data[DOMAIN]["media_type"] = "podcast"
+    media_source = await async_get_media_source(hass)
+
+    result = await media_source.async_browse_media(
+        MediaSourceItem(hass, DOMAIN, "example/all", None)
+    )
+
+    assert result.children
+    assert result.children[0].media_content_type == "podcast"

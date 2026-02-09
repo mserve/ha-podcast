@@ -25,6 +25,7 @@ from .const import (
     CONF_UPDATE_CHECK_INTERVAL,
     CONF_UPDATE_INTERVAL,
     CONF_URL,
+    DATA_DEFAULT_UPDATE_INTERVAL,
     DEFAULT_MAX_EPISODES,
     DEFAULT_UPDATE_CHECK_INTERVAL,
     DEFAULT_UPDATE_INTERVAL,
@@ -80,7 +81,7 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """
-    Set up the Podcast Hub integration.
+    Set up the Podcast Hub integration from YAML configuration.
 
     Parameters
     ----------
@@ -138,12 +139,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     data["yaml_update_check_interval"] = conf.get(
         CONF_UPDATE_CHECK_INTERVAL, DEFAULT_UPDATE_CHECK_INTERVAL
     )
+    data[DATA_DEFAULT_UPDATE_INTERVAL] = update_interval
     data["media_type"] = media_type
-    hub, coordinator = _ensure_hub_and_coordinator(
-        hass, conf.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
-    )
-    _merge_feeds(hub, feeds)
-    await coordinator.async_refresh()
+    data["yaml_feed_ids"] = {feed.feed_id for feed in feeds}
+    if feeds:
+        hub, coordinator = _ensure_hub_and_coordinator(
+            hass, conf.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+        )
+        _merge_feeds(hub, feeds)
+        await coordinator.async_refresh()
 
     async def _async_handle_reload(call: ServiceCall) -> None:  # noqa: ARG001
         try:
@@ -158,49 +162,77 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         hass.services.async_register(DOMAIN, SERVICE_RELOAD, _async_handle_reload)
         data["service_registered"] = True
 
-    for platform in PLATFORMS:
-        await discovery.async_load_platform(hass, platform, DOMAIN, {}, config)
+    if feeds:
+        for platform in PLATFORMS:
+            await discovery.async_load_platform(hass, platform, DOMAIN, {}, config)
 
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Podcast Hub from a config entry."""
+    """
+    Set up Podcast Hub from a config entry.
+
+    Parameters
+    ----------
+    hass : HomeAssistant
+        The Home Assistant instance.
+    entry : ConfigEntry
+        The configuration entry to set up.
+
+    """
     hass.data.setdefault(DOMAIN, {})
     data = hass.data[DOMAIN]
-    if entry.unique_id == "settings":
-        hass.data[DOMAIN]["settings_entry"] = entry
-        entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-        return True
-
     update_check_interval = data.get(
         "yaml_update_check_interval", DEFAULT_UPDATE_CHECK_INTERVAL
+    )
+    data[DATA_DEFAULT_UPDATE_INTERVAL] = entry.options.get(
+        CONF_UPDATE_INTERVAL,
+        entry.data.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
     )
 
     hub, coordinator = _ensure_hub_and_coordinator(hass, update_check_interval)
 
-    source = entry.options or entry.data
-    # Add new feed to hub
-    feed = PodcastFeed(
-        feed_id=entry.data[CONF_ID],
-        name=source.get(CONF_NAME, entry.data[CONF_NAME]),
-        url=source.get(CONF_URL, entry.data[CONF_URL]),
-        max_episodes=_coerce_max_episodes(
-            source.get(CONF_MAX_EPISODES, DEFAULT_MAX_EPISODES)
-        ),
-        update_interval=source.get(CONF_UPDATE_INTERVAL),
-        refresh_times=parse_refresh_times(source.get(CONF_REFRESH_TIMES)),
-    )
-    hub.feeds[feed.feed_id] = feed
-    LOGGER.debug("New feed added; refreshing podcast feeds now")
+    hass.data[DOMAIN]["config_entry"] = entry
+    yaml_feed_ids = set(data.get("yaml_feed_ids", set()))
+    desired_ids: set[str] = set()
+    for subentry in entry.subentries.values():
+        source = subentry.data
+        feed_id = source.get(CONF_ID)
+        name = source.get(CONF_NAME)
+        url = source.get(CONF_URL)
+        if not feed_id or not name or not url:
+            LOGGER.warning(
+                "Skipping invalid podcast subentry config: %s",
+                source,
+            )
+            continue
+        feed = PodcastFeed(
+            feed_id=feed_id,
+            name=name,
+            url=url,
+            max_episodes=_coerce_max_episodes(
+                source.get(CONF_MAX_EPISODES, DEFAULT_MAX_EPISODES)
+            ),
+            update_interval=source.get(CONF_UPDATE_INTERVAL),
+            refresh_times=parse_refresh_times(source.get(CONF_REFRESH_TIMES)),
+        )
+        hub.add_feed(feed)
+        desired_ids.add(feed.feed_id)
+    protected_ids = set(yaml_feed_ids)
+    protected_ids.update(desired_ids)
+    for feed_id in list(hub.feeds.keys()):
+        if feed_id not in protected_ids:
+            hub.remove_feed(feed_id)
+    LOGGER.debug("Subentry feeds loaded; refreshing podcast feeds now")
     await coordinator.async_refresh()
-    LOGGER.debug("Feed addition refresh completed")
+    LOGGER.debug("Subentry refresh completed")
 
     if not data.get("service_registered"):
 
         async def _async_handle_reload(call: ServiceCall) -> None:  # noqa: ARG001
             try:
-                LOGGER.debug("Manual reload requested; refreshing podcast feeds now")
+                LOGGER.debug("Manual reload requested; scheduling refreshing podcast")
                 await coordinator.async_force_refresh()
                 LOGGER.debug("Manual reload completed")
             except (TimeoutError, aiohttp.ClientError) as err:
@@ -221,16 +253,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not data:
         return True
 
-    # Remove settings entry
-    if entry.unique_id == "settings":
-        data.pop("settings_entry", None)
-        return True
-
     hub: PodcastHub | None = data.get("hub")
+    if data.get("config_entry") == entry:
+        data.pop("config_entry", None)
     if hub and hub.feeds:
-        feed_id = entry.data.get(CONF_ID)
-        if feed_id:
-            hub.feeds.pop(feed_id, None)
+        for subentry in entry.subentries.values():
+            feed_id = subentry.data.get(CONF_ID)
+            if feed_id:
+                hub.remove_feed(feed_id)
 
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if not unload_ok:
@@ -251,7 +281,7 @@ def _ensure_hub_and_coordinator(
     coordinator = data.get("coordinator")
     if hub and coordinator:
         return hub, coordinator
-    hub = PodcastHub([])
+    hub = PodcastHub(hass, [])
     coordinator = PodcastHubCoordinator(hass, hub, update_interval)
     data["hub"] = hub
     data["coordinator"] = coordinator
@@ -263,25 +293,7 @@ def _merge_feeds(hub: PodcastHub, feeds: list[PodcastFeed]) -> None:
         hub.feeds[feed.feed_id] = feed
 
 
-def _get_global_update_interval(hass: HomeAssistant) -> int:
-    data = hass.data.get(DOMAIN, {})
-    settings = data.get("settings_entry")
-    if settings:
-        source = settings.options or settings.data
-        return source.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
-    yaml_interval = data.get("yaml_update_interval")
-    if yaml_interval:
-        return yaml_interval
-    return DEFAULT_UPDATE_INTERVAL
-
-
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    if entry.unique_id == "settings":
-        return
-    source = entry.options or entry.data
-    new_title = source.get(CONF_NAME)
-    if new_title and entry.title != new_title:
-        hass.config_entries.async_update_entry(entry, title=new_title)
     hass.config_entries.async_schedule_reload(entry.entry_id)
 
 

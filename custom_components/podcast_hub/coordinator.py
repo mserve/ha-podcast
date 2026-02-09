@@ -2,22 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
-import calendar
-from datetime import UTC, datetime, time, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import async_timeout
-import feedparser
-from feedparser import FeedParserDict
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-)
-from homeassistant.util import dt as dt_util
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import EVENT_NEW_EPISODE, LOGGER, REQUEST_TIMEOUT
-from .podcast_hub import Episode, PodcastFeed, PodcastHub
+from .const import EVENT_NEW_EPISODE, LOGGER
+from .podcast_hub import PodcastFeed, PodcastHub
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -79,12 +71,11 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             update_interval=timedelta(minutes=update_interval),
             always_update=True,
         )
-        self.base_update_interval = timedelta(minutes=update_interval)
         self.hub = hub
         self._known_guids: dict[str, set[str]] = {}
         self._force_refresh = False
 
-    async def _async_update_data(self) -> None:
+    async def _async_update_data(self) -> dict[str, PodcastFeed]:
         """
         Fetch data from API endpoint.
 
@@ -99,72 +90,10 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
             async with async_timeout.timeout(60):
                 # This will run updates concurrently but is not Home Assistant parallel
                 # safe
-                tasks = [
-                    self._async_update_feed(feed) for feed in self.hub.feeds.values()
-                ]
-                await asyncio.gather(*tasks)
-        finally:
-            self._force_refresh = False
-
-        LOGGER.debug("Finished podcast feed refresh check")
-
-    async def _async_update_feed(
-        self, feed: PodcastFeed, *, force_refresh: bool = False
-    ) -> None:
-        now_utc = dt_util.utcnow()
-        now_local = dt_util.as_local(now_utc)
-        if force_refresh or self._force_refresh:
-            LOGGER.info("Force refresh for %s (%s)", feed.name, feed.feed_id)
-        elif not feed.last_update:
-            LOGGER.info("Initial refresh for %s (%s)", feed.name, feed.feed_id)
-        elif feed.refresh_times and self._is_scheduled_refresh_due(feed, now_local):
-            LOGGER.info("Scheduled refresh due for %s (%s)", feed.name, feed.feed_id)
-        elif feed.update_interval and now_utc - feed.last_update > timedelta(
-            minutes=feed.update_interval
-        ):
-            LOGGER.info(
-                "Regular feed update due for %s (%s) - last update was %s, %d minutes ago",  # noqa: E501
-                feed.name,
-                feed.feed_id,
-                feed.last_update,
-                (now_utc - feed.last_update).total_seconds() / 60,
-            )
-        else:
-            LOGGER.debug(
-                "NO feed update for %s (%s) required!",
-                feed.name,
-                feed.feed_id,
-            )
-            return
-        try:
-            LOGGER.debug(
-                "Fetching feed for %s (%s) from %s",
-                feed.name,
-                feed.feed_id,
-                feed.url,
-            )
-            data = await self._async_fetch(feed.url)
-            LOGGER.debug(
-                "Finished fetching feed for %s (%s) (%d bytes)",
-                feed.name,
-                feed.feed_id,
-                len(data),
-            )
-            parsed = await self.hass.async_add_executor_job(feedparser.parse, data)
-            feed.title = parsed.feed.title or feed.name  # pyright: ignore[reportAttributeAccessIssue]
-            feed.image_url = self._feed_image_url(parsed)
-            feed.episodes = self._build_episodes(
-                parsed.entries, feed.max_episodes, feed
-            )
-            self._fire_new_episode_events(feed)
-            feed.last_error = None
-        except (TimeoutError, OSError, ValueError) as err:
-            feed.last_error = str(err)
-            LOGGER.warning(
-                "Failed to update feed %s (%s): %s", feed.name, feed.feed_id, err
-            )
-        finally:
-            feed.last_update = now_utc
+                return await self.hub.fetch_all_feeds(force_refresh=self._force_refresh)
+        except Exception as err:
+            msg = f"Error fetching podcast feeds: {err}"
+            raise UpdateFailed(msg) from err
 
     async def async_force_refresh(self) -> None:
         """Force a refresh of all feeds regardless of schedule."""
@@ -174,110 +103,12 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
         finally:
             self._force_refresh = False
 
-    async def _async_fetch(self, url: str) -> bytes:
-        session = async_get_clientsession(self.hass)
-        async with async_timeout.timeout(REQUEST_TIMEOUT), session.get(url) as resp:
-            resp.raise_for_status()
-            return await resp.read()
-
-    def _build_episodes(
-        self, entries: list[FeedParserDict], max_episodes: int, feed: PodcastFeed
-    ) -> list[Episode]:
-        items: list[Episode] = []
-        for entry in entries:
-            episode = self._entry_to_episode(entry, feed)
-            if episode:
-                items.append(episode)
-            if len(items) >= max_episodes:
-                break
-        return items
-
-    def _entry_to_episode(
-        self, entry: FeedParserDict, feed: PodcastFeed
-    ) -> Episode | None:
-        guid = entry.id or entry.guid or entry.link
-        if not guid:
-            return None
-        title = entry.title or "Untitled"
-        LOGGER.debug(
-            "Parsed episode for %s (%s): %s [%s]",
-            feed.name,
-            feed.feed_id,
-            title,
-            guid,
-        )
-        url = self._entry_audio_url(entry, feed)
-        if not url:
-            LOGGER.warning(
-                "No audio URL found for %s (%s) episode: %s - check if this is a "
-                "proper feed url",
-                feed.name,
-                feed.feed_id,
-                title,
-            )
-            url = entry.link or ""
-        if not url:
-            return None
-        published = self._entry_published(entry)
-        summary = entry.summary or entry.description
-        return Episode(
-            guid=guid,  # pyright: ignore[reportArgumentType]
-            title=title,  # pyright: ignore[reportArgumentType]
-            published=published,
-            url=url,  # pyright: ignore[reportArgumentType]
-            image_url=self._entry_image_url(entry),
-            summary=summary,  # pyright: ignore[reportArgumentType]
-        )
-
-    def _entry_audio_url(self, entry: FeedParserDict, feed: PodcastFeed) -> str | None:
-        for enclosure in entry.enclosures or []:
-            href = enclosure.href
-            if href:
-                return href  # pyright: ignore[reportReturnType]
-        LOGGER.debug(
-            "No audio enclosure found for %s (%s) entry: %s",
-            feed.name,
-            feed.feed_id,
-            entry,
-        )
-        return None
-
-    def _entry_published(self, entry: FeedParserDict) -> datetime | None:
-        parsed = entry.published_parsed or entry.updated_parsed
-        if not parsed:
-            return None
-        return datetime.fromtimestamp(calendar.timegm(parsed), tz=UTC)  # pyright: ignore[reportArgumentType]
-
-    def _feed_image_url(self, parsed: FeedParserDict) -> str | None:
-        image = parsed.feed.get("image", {}) if parsed.feed else {}
-        if isinstance(image, dict):
-            href = image.get("href") or image.get("url")
-            if href:
-                return href
-        itunes_image = parsed.feed.get("itunes_image") if parsed.feed else None
-        if isinstance(itunes_image, dict):
-            href = itunes_image.get("href")
-            if href:
-                return href
-        return None
-
-    def _entry_image_url(self, entry: FeedParserDict) -> str | None:
-        image = entry.get("image")
-        if isinstance(image, dict):
-            href = image.get("href") or image.get("url")
-            if href:
-                return href
-        itunes_image = entry.get("itunes_image")
-        if isinstance(itunes_image, dict):
-            href = itunes_image.get("href")
-            if href:
-                return href
-        media_thumbnail = entry.get("media_thumbnail")
-        if isinstance(media_thumbnail, list) and media_thumbnail:
-            url = media_thumbnail[0].get("url")
-            if url:
-                return url
-        return None
+    def _async_refresh_finished(self) -> None:
+        """Handle post-refresh tasks."""
+        super()._async_refresh_finished()
+        LOGGER.debug("Finished refreshing podcast feeds; checking for new episodes")
+        for feed in self.hub.feeds.values():
+            self._fire_new_episode_events(feed)
 
     def _fire_new_episode_events(self, feed: PodcastFeed) -> None:
         current_guids = {episode.guid for episode in feed.episodes}
@@ -306,42 +137,3 @@ class PodcastHubCoordinator(DataUpdateCoordinator[PodcastHub]):
                     "episode": episode.as_dict(),
                 },
             )
-
-    def _is_scheduled_refresh_due(self, feed: PodcastFeed, now_local: datetime) -> bool:
-        if not feed.last_update:
-            LOGGER.debug(
-                "No last update for %s (%s) - scheduled refresh is due",
-                feed.name,
-                feed.feed_id,
-            )
-            return True
-        last_local = dt_util.as_local(feed.last_update)
-        next_refresh = self._next_scheduled_time(last_local, feed.refresh_times)
-        if now_local >= next_refresh:
-            LOGGER.debug(
-                "Next scheduled refresh for %s (%s) at %s - now it's %s",
-                feed.name,
-                feed.feed_id,
-                next_refresh,
-                now_local,
-            )
-            return True
-        return False
-
-    def _next_scheduled_time(
-        self, last_local: datetime, refresh_times: list[time]
-    ) -> datetime:
-        for refresh_time in refresh_times:
-            candidate = datetime.combine(
-                last_local.date(),
-                refresh_time,
-                tzinfo=last_local.tzinfo,
-            )
-            if candidate > last_local:
-                return candidate
-        next_day = last_local.date() + timedelta(days=1)
-        return datetime.combine(
-            next_day,
-            refresh_times[0],
-            tzinfo=last_local.tzinfo,
-        )

@@ -7,42 +7,7 @@
   },
   "config": {
     "step": {
-      "menu": {
-        "title": "Podcast Hub Einrichtung",
-        "menu_options": {
-          "add_feed": "Podcast-Feed hinzufügen",
-          "settings": "Einstellungen"
-        }
-      },
       "user": {
-        "title": "Podcast-Feed hinzufügen",
-        "description": "Richte einen Podcast-Feed zum Durchsuchen und Abspielen ein.",
-        "data": {
-          "name": "Name",
-          "url": "Feed-URL",
-          "max_episodes": "Maximale Episoden",
-          "refresh_times": "Aktualisierungszeiten (HH:MM)",
-          "update_interval": "Aktualisierungsintervall (Minuten)"
-        },
-        "data_description": {
-          "refresh_times": "Füge eine oder mehrere lokale Zeiten hinzu."
-        }
-      },
-      "add_feed": {
-        "title": "Podcast-Feed hinzufügen",
-        "description": "Richte einen Podcast-Feed zum Durchsuchen und Abspielen ein.",
-        "data": {
-          "name": "Name",
-          "url": "Feed-URL",
-          "max_episodes": "Maximale Episoden",
-          "refresh_times": "Aktualisierungszeiten (HH:MM)",
-          "update_interval": "Aktualisierungsintervall (Minuten)"
-        },
-        "data_description": {
-          "refresh_times": "Füge eine oder mehrere lokale Zeiten hinzu."
-        }
-      },
-      "settings": {
         "title": "Globale Einstellungen",
         "description": "Konfiguriere Standardwerte für alle Feeds.",
         "data": {
@@ -54,10 +19,54 @@
         }
       }
     },
-    "error": {
-      "already_configured": "Dieser Feed ist bereits konfiguriert.",
-      "invalid_url": "Bitte gib eine gültige URL ein.",
-      "invalid_time": "Bitte Zeiten im Format HH:MM eingeben."
+    "abort": {
+      "already_configured": "Podcast Hub ist bereits konfiguriert."
+    }
+  },
+  "config_subentries": {
+    "feed": {
+      "entry_type": "Podcast-Feed",
+      "initiate_flow": {
+        "user": "Podcast-Feed hinzufügen"
+      },
+      "step": {
+        "user": {
+          "title": "Podcast-Feed hinzufügen",
+          "description": "Richte einen Podcast-Feed zum Durchsuchen und Abspielen ein.",
+          "data": {
+            "name": "Name",
+            "url": "Feed-URL",
+            "max_episodes": "Maximale Episoden",
+            "refresh_times": "Aktualisierungszeiten (HH:MM)",
+            "update_interval": "Aktualisierungsintervall (Minuten)"
+          },
+          "data_description": {
+            "refresh_times": "Füge eine oder mehrere lokale Zeiten hinzu."
+          }
+        },
+        "reconfigure": {
+          "title": "Podcast-Feed Einstellungen",
+          "description": "Aktualisiere die Details dieses Feeds.",
+          "data": {
+            "name": "Name",
+            "url": "Feed-URL",
+            "max_episodes": "Maximale Episoden",
+            "refresh_times": "Aktualisierungszeiten (HH:MM)",
+            "update_interval": "Aktualisierungsintervall (Minuten)"
+          },
+          "data_description": {
+            "refresh_times": "Füge eine oder mehrere lokale Zeiten hinzu."
+          }
+        }
+      },
+      "error": {
+        "invalid_url": "Bitte gib eine gültige URL ein.",
+        "invalid_time": "Bitte Zeiten im Format HH:MM eingeben."
+      },
+      "abort": {
+        "already_configured": "Dieser Feed ist bereits konfiguriert.",
+        "reconfigure_successful": "Feed aktualisiert."
+      }
     }
   },
   "options": {
@@ -72,24 +81,7 @@
         "data_description": {
           "media_type": "Verwende \"track\" für audio/* (beste Kompatibilität mit Sonos) oder \"podcast\" für Podcast."
         }
-      },
-      "feed": {
-        "title": "Podcast-Feed Einstellungen",
-        "description": "Aktualisiere die Details dieses Feeds.",
-        "data": {
-          "name": "Name",
-          "url": "Feed-URL",
-          "max_episodes": "Maximale Episoden",
-          "refresh_times": "Aktualisierungszeiten (HH:MM)",
-          "update_interval": "Aktualisierungsintervall (Minuten)"
-        },
-        "data_description": {
-          "refresh_times": "Füge eine oder mehrere lokale Zeiten hinzu."
-        }
       }
-    },
-    "error": {
-      "invalid_time": "Bitte Zeiten im Format HH:MM eingeben."
     }
   }
 }

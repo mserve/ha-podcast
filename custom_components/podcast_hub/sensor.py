@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 
-from .const import DOMAIN
+from .const import CONF_ID, DOMAIN
 from .entity import PodcastHubEntity
 
 if TYPE_CHECKING:
@@ -53,8 +53,21 @@ async def async_setup_platform(
         return
     coordinator = data["coordinator"]
     hub = data["hub"]
+    yaml_feed_ids = data.get("yaml_feed_ids", set())
+    if not yaml_feed_ids:
+        return
+    subentry_feed_ids: set[str] = set()
+    entry = data.get("config_entry")
+    if entry:
+        subentry_feed_ids = {
+            subentry.data.get(CONF_ID)
+            for subentry in entry.subentries.values()
+            if subentry.data.get(CONF_ID)
+        }
     entities = [
-        PodcastFeedSensor(coordinator, feed.feed_id) for feed in hub.feeds.values()
+        PodcastFeedSensor(coordinator, feed.feed_id)
+        for feed in hub.feeds.values()
+        if feed.feed_id in yaml_feed_ids and feed.feed_id not in subentry_feed_ids
     ]
     async_add_entities(entities)
 
@@ -69,10 +82,14 @@ async def async_setup_entry(
     if not data:
         return
     coordinator = data["coordinator"]
-    feed_id = entry.data.get("id")
-    if not feed_id:
-        return
-    async_add_entities([PodcastFeedSensor(coordinator, feed_id)])
+    for subentry_id, subentry in entry.subentries.items():
+        feed_id = subentry.data.get(CONF_ID)
+        if not feed_id:
+            continue
+        async_add_entities(
+            [PodcastFeedSensor(coordinator, feed_id)],
+            config_subentry_id=subentry_id,
+        )
 
 
 class PodcastFeedSensor(PodcastHubEntity, SensorEntity):
