@@ -7,4 +7,4 @@ feedparser>=6.0.11
 pytest
 pytest-cov
 pytest-asyncio
-pytest-homeassistant-custom-component==0.13.308
+pytest-homeassistant-custom-component==0.13.315
