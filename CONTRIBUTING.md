@@ -66,8 +66,8 @@ file.
 - Install pre-commit and hooks (optional but recommended):
 
 ```
-pip install pre-commit
-pre-commit install
+pip install prek
+prek install
 ```
 
 - Run tests:

@@ -79,8 +79,11 @@ class PodcastHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 def _generate_feed_id(name: str, url: str, existing: set[str]) -> str:
     # Prefer a slugified name; fall back to the URL; ensure uniqueness.
-    base = cv.slugify(name) or cv.slugify(url)
-    if not base:
+    if name:
+        base = cv.slugify(name)
+    elif url:
+        base = cv.slugify(url)
+    else:
         base = "podcast"
     candidate = base
     counter = 2

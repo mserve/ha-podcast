@@ -1,17 +1,17 @@
 {
   "domain": "podcast_hub",
   "name": "Podcast Hub",
-  "version": "0.1.0",
-  "integration_type": "service",
   "codeowners": [
     "@mserve"
   ],
-  "documentation": "https://github.com/mserve/ha-podcast",
-  "issue_tracker": "https://github.com/mserve/ha-podcast/issues",
   "config_flow": true,
-  "single_config_entry": true,
+  "documentation": "https://github.com/mserve/ha-podcast",
   "iot_class": "cloud_polling",
+  "integration_type": "service",
+  "issue_tracker": "https://github.com/mserve/ha-podcast/issues",
   "requirements": [
     "feedparser==6.0.11"
-  ]
+  ],
+  "single_config_entry": true,
+  "version": "0.1.0"
 }

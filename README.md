@@ -194,6 +194,6 @@ pytest -q
 - Optional: install pre-commit hooks:
 
 ```
-pip install pre-commit
-pre-commit install
+pip install prek
+prek install
 ```

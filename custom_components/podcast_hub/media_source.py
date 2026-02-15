@@ -24,13 +24,14 @@ from .const import (
     LOGGER,
     REQUEST_TIMEOUT,
 )
-from .coordinator import PodcastHubCoordinator
-from .podcast_hub import PodcastHub
+from .init_common import ensure_hub_and_coordinator
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
-    from .podcast_hub import Episode, PodcastFeed
+    from custom_components.podcast_hub.coordinator import PodcastHubCoordinator
+
+    from .podcast_hub import Episode, PodcastFeed, PodcastHub
 
 
 PODCASTS_ROOT = "feeds"
@@ -53,14 +54,7 @@ MEDIA_SOURCE_ICON = f"data:image/svg+xml;utf8,{quote(_ICON_SVG)}"
 
 async def async_get_media_source(hass: HomeAssistant) -> PodcastHubMediaSource:
     """Return the Podcast Hub media source instance."""
-    data = hass.data.setdefault(DOMAIN, {})
-    hub = data.get("hub")
-    coordinator = data.get("coordinator")
-    if not hub or not coordinator:
-        hub = PodcastHub([])
-        coordinator = PodcastHubCoordinator(hass, hub, DEFAULT_UPDATE_INTERVAL)
-        data["hub"] = hub
-        data["coordinator"] = coordinator
+    hub, coordinator = ensure_hub_and_coordinator(hass, DEFAULT_UPDATE_INTERVAL)
     return PodcastHubMediaSource(hass, hub, coordinator)
 
 
@@ -112,7 +106,7 @@ class PodcastHubMediaSource(MediaSource):
             raise MediaSourceError(msg)
         parsed = _parse_episode_id(item.identifier)
         if not parsed.feed_id or not parsed.item_id:
-            msg = f"Invalid media content id {item.media_content_id}"
+            msg = f"Invalid media source id {item.media_source_id}"
             raise MediaSourceError(msg)
 
         feed = self.hub.get_feed(parsed.feed_id)

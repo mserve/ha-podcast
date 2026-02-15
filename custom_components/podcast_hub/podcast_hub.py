@@ -89,6 +89,17 @@ class PodcastHub:
         """Remove a feed from the hub by ID."""
         self.feeds.pop(feed_id, None)
 
+    def merge_feeds(self, feeds: list[PodcastFeed]) -> None:
+        """
+        Merge a list of feeds into the hub.
+
+        :param self: The PodcastHub instance.
+        :param feeds: The list of PodcastFeed objects to merge.
+        :type feeds: list[PodcastFeed]
+        """
+        for feed in feeds:
+            self.feeds[feed.feed_id] = feed
+
     async def fetch_all_feeds(
         self, *, force_refresh: bool = False
     ) -> dict[str, PodcastFeed]:
@@ -189,10 +200,21 @@ class PodcastHub:
         self, entry: FeedParserDict, feed: PodcastFeed
     ) -> Episode | None:
         """Build an Episode from a feed entry, if it is usable."""
-        guid = entry.id or entry.guid or entry.link
+        guid = (
+            entry.id
+            if hasattr(entry, "id")
+            else entry.uid
+            if hasattr(entry, "uid") and entry.uid
+            else entry.link
+            if hasattr(entry, "link") and entry.link
+            else None
+        )
+
         if not guid:
             return None
-        title = entry.title or "Untitled"
+
+        title = entry.title if hasattr(entry, "title") and entry.title else "Untitled"
+
         LOGGER.debug(
             "Parsed episode for %s (%s): %s [%s]",
             feed.name,
@@ -209,11 +231,20 @@ class PodcastHub:
                 feed.feed_id,
                 title,
             )
-            url = entry.link or ""
+            url = entry.link if hasattr(entry, "link") and entry.link else None
         if not url:
             return None
+
         published = self._entry_published(entry)
-        summary = entry.summary or entry.description
+
+        summary = (
+            entry.summary
+            if hasattr(entry, "summary") and entry.summary
+            else entry.description
+            if hasattr(entry, "description") and entry.description
+            else None
+        )
+
         return Episode(
             guid=guid,  # pyright: ignore[reportArgumentType]
             title=title,  # pyright: ignore[reportArgumentType]
@@ -225,10 +256,12 @@ class PodcastHub:
 
     def _entry_audio_url(self, entry: FeedParserDict, feed: PodcastFeed) -> str | None:
         """Find the best audio enclosure URL for a feed entry."""
-        for enclosure in entry.enclosures or []:
-            href = enclosure.href
+        enclosures = entry.get("enclosures", [])
+        for enclosure in enclosures or []:
+            href = enclosure.get("href")
             if href:
                 return href  # pyright: ignore[reportReturnType]
+
         LOGGER.debug(
             "No audio enclosure found for %s (%s) entry: %s",
             feed.name,
@@ -239,9 +272,14 @@ class PodcastHub:
 
     def _entry_published(self, entry: FeedParserDict) -> datetime | None:
         """Return the published datetime from an entry if available."""
-        parsed = entry.published_parsed or entry.updated_parsed
+        try:
+            parsed = entry.published_parsed or entry.updated_parsed
+        except AttributeError:
+            return None
+
         if not parsed:
             return None
+
         return datetime.fromtimestamp(calendar.timegm(parsed), tz=UTC)  # pyright: ignore[reportArgumentType]
 
     def _feed_image_url(self, parsed: FeedParserDict) -> str | None:
