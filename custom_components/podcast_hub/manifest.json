@@ -6,8 +6,8 @@
   ],
   "config_flow": true,
   "documentation": "https://github.com/mserve/ha-podcast",
-  "iot_class": "cloud_polling",
   "integration_type": "service",
+  "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/mserve/ha-podcast/issues",
   "requirements": [
     "feedparser==6.0.11"
